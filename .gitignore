@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Data (Avoid committing large datasets)
+data/
+!data/.gitkeep
+.DS_Store

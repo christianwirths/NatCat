@@ -1,0 +1,15 @@
+name: NatCat
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - requests
+  - tqdm
+  - jupyterlab
+  - matplotlib
+  - seaborn
+  - cartopy
+  # We will need these later for geospatial work:
+  - geopandas 
+  - shapely
