@@ -1,5 +1,5 @@
 import numpy as np
-from utils import haversine_vectorized
+from utils import haversine_vectorized, beraring
 
 # Wind velocity at arbitrary latitude and longitude we calculate by using a Rankine vortex
 # https://en.wikipedia.org/wiki/Rankine_vortex
@@ -31,14 +31,19 @@ def rankine_vortex(r,max_wind_speed, radius_max_wind,exponent=2):
 # https://en.wikipedia.org/wiki/Lamb–Oseen_vortex
 
 
-
 # Calculate max velocity for all points 
-def max_wind_speeds_at_locations(df, points,vortex="rankine"):
+def max_wind_speeds_at_locations(df, points, vortex="rankine", asymmetry_factor=0.5):
     """ Calculate the maximum wind speeds at given locations over the storm track.
         Args:
         df (pd.DataFrame): DataFrame containing storm track data with 
-        columns 'latitude', 'longitude', 'max_wind_speed_kt', and 'radius_max_wind_nm'.
-        points (list of tuples): List of (latitude, longitude) tuples representing the locations of interest."""
+            columns 'latitude', 'longitude', 'max_wind_speed_kt', 'radius_max_wind_nm',
+            'velocity_kt' (storm translation speed), and 'bearing_deg' (storm heading).
+        points (list of tuples): List of (latitude, longitude) tuples representing the locations of interest.
+        vortex (str): Type of vortex model to use ('rankine' or 'lamb-oseen').
+        asymmetry_factor (float): Fraction of storm translation speed that contributes to asymmetry (typically 0.5-1.0).
+        
+        Returns:
+        np.ndarray: Maximum wind speeds (in knots) at each location over the storm's passage."""
     
     v_rtex_max = np.zeros(len(points), dtype=float)
     latitudes = np.array([point[0] for point in points])
@@ -51,7 +56,6 @@ def max_wind_speeds_at_locations(df, points,vortex="rankine"):
 
         distances = haversine_vectorized(lat, lon, latitudes, longitudes)
 
-
         max_wind_speed = row['max_wind_speed_kt']
         radius_max_wind = row['radius_max_wind_nm']
 
@@ -61,6 +65,18 @@ def max_wind_speeds_at_locations(df, points,vortex="rankine"):
             raise NotImplementedError("Lamb-Oseen vortex not implemented yet.")
         else:
             raise ValueError("Unknown vortex type. Use 'rankine' or 'lamb-oseen'.")
+        
+        # Calculate angle from storm center to each point
+        angles_to_points = beraring(lat, lon, latitudes, longitudes)
+        
+        # Angle difference: how far clockwise the point is from storm's heading
+        # Normalize to [-180, 180]: positive = right of track, negative = left of track
+        angle_diff = (angles_to_points - row["bearing_deg"] + 180) % 360 - 180
+        
+        # Add asymmetry: right side (positive angle_diff) gets wind boost, left side gets reduction
+        # Using sin because max effect is perpendicular to storm motion (90° = right side)
+        v_rtex += asymmetry_factor * row["velocity_kt"] * np.sin(np.radians(angle_diff))
+
         v_rtex_max = np.maximum(v_rtex_max, v_rtex)
     
         
