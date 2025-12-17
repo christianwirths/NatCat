@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-def track_interpolation(df, time_step='30min'):
+
+# -------------------------------------------------------------------------
+# SECTION: Track Data Utilities
+# -------------------------------------------------------------------------
+def track_interpolation(df, time_step='30min',kind='linear'):
     """Interpolate the track data to finer time intervals (e.g., hourly)."""
 
     # Convert time to datetime
@@ -12,11 +16,10 @@ def track_interpolation(df, time_step='30min'):
     new_time_index = pd.date_range(start=df['time'].min(), end=df['time'].max(), freq=time_step)
 
     # Interpolate latitude and longitude
-    lat_interp = interp1d(df['time'].astype(int), df['latitude'], kind='linear', fill_value="extrapolate")
-    lon_interp = interp1d(df['time'].astype(int), df['longitude'], kind='linear', fill_value="extrapolate")
-    wind_interp = interp1d(df['time'].astype(int), df['max_wind_speed_kt'], kind='linear', fill_value="extrapolate")
-    radius_max_wind_interp = interp1d(df['time'].astype(int), df['radius_max_wind_nm'], kind='linear', fill_value="extrapolate")
-
+    lat_interp = interp1d(df['time'].astype(int), df['latitude'], kind=kind, fill_value="extrapolate")
+    lon_interp = interp1d(df['time'].astype(int), df['longitude'], kind=kind, fill_value="extrapolate")
+    wind_interp = interp1d(df['time'].astype(int), df['max_wind_speed_kt'], kind=kind, fill_value="extrapolate")
+    radius_max_wind_interp = interp1d(df['time'].astype(int), df['radius_max_wind_nm'], kind=kind, fill_value="extrapolate")
 
     # Create new DataFrame with interpolated values
     interp_df = pd.DataFrame({
@@ -28,6 +31,33 @@ def track_interpolation(df, time_step='30min'):
     })
 
     return interp_df
+
+def extract_past_trajectory(df,timestamp, tech='OFCL'):
+    df_ptrac = df[df['TECH'] == tech].copy()
+    df_ptrac = df_ptrac[df_ptrac['timestamp'] <= timestamp]
+    df_ptrac = df_ptrac[df_ptrac['tau'] == 0]
+
+    # Remove duplicates
+    df_ptrac = df_ptrac.drop_duplicates(subset=['timestamp'], keep='last')
+    
+    return df_ptrac
+
+def extract_future_trajectory(df,timestamp, tech='OFCL'):
+    df_ftrac = df[df['TECH'] == tech].copy()
+    df_ftrac = df_ftrac[df_ftrac['timestamp'] == timestamp]
+    #df_ftrac = df_ftrac[df_ftrac['tau'] != 0]
+
+    # Remove duplicates
+    df_ftrac = df_ftrac.drop_duplicates(subset=['tau'], keep='last')
+
+    # Add tau to timestamp to get future timestamps
+    df_ftrac['timestamp'] = df_ftrac['timestamp'] + pd.to_timedelta(df_ftrac['tau'], unit='h')
+    
+    return df_ftrac
+
+# -------------------------------------------------------------------------
+# SECTION: Geospatial Utilities
+# -------------------------------------------------------------------------
 
 def haversine_vectorized(lat1, lon1, lat2_array, lon2_array):
     """
@@ -50,7 +80,9 @@ def haversine_vectorized(lat1, lon1, lat2_array, lon2_array):
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     
     return R * c
-
+# -------------------------------------------------------------------------
+# SECTION: Unit Conversion Utilities
+# -------------------------------------------------------------------------
 def nm2km(nm):
     """
     Convert Nautical Miles to Kilometers.
@@ -63,7 +95,9 @@ def kt2kmh(kt):
     """
     return kt * 1.852
 
-
+# -------------------------------------------------------------------------
+# SECTION: Cyclone Motion Utilities
+# -------------------------------------------------------------------------
 def cyclone_velocity(df):
     """Calculate the cyclone velocity between consecutive track points."""
     # Calculate distance between consecutive points
