@@ -26,6 +26,53 @@ def rankine_vortex(r,max_wind_speed, radius_max_wind,exponent=2):
 
     return v_at_r
 
+def get_heuristic_rmw(df):
+    """Apply heuristic estimates for radius of maximum wind (RMW) when data is missing.
+    
+    Uses wind speed-based heuristics to estimate RMW:
+    - < 35 kt: 80 nm
+    - < 64 kt: 60 nm  
+    - < 96 kt: 40 nm
+    - < 137 kt: 25 nm
+    - >= 137 kt: 15 nm
+    
+    Also applies 1.5x scaling for extratropical cyclones.
+    
+    Args:
+        df: DataFrame with 'max_wind_speed_kt', 'radius_max_wind_nm', and 'storm_type' columns
+        
+    Returns:
+        DataFrame with filled RMW values
+    """
+    df_fixed = df.copy()
+    winds = df_fixed['max_wind_speed_kt'].fillna(0)
+    
+    # Wind speed to radius mapping
+    conditions = [
+        winds < 35,   
+        winds < 64,   
+        winds < 96,   
+        winds < 137   
+    ]
+    
+    choices = [
+        80.0, 
+        60.0,  
+        40.0,  
+        25.0   
+    ]
+    
+    heuristic_rmw = np.select(conditions, choices, default=15.0)
+    needs_fix_mask = (df_fixed['radius_max_wind_nm'].isna()) | (df_fixed['radius_max_wind_nm'] <= 0)
+    
+    df_fixed.loc[needs_fix_mask, 'radius_max_wind_nm'] = heuristic_rmw[needs_fix_mask]
+    
+    # Apply 1.5x scaling for extratropical cyclones
+    ex_mask = df_fixed['storm_type'] == 'EX'
+    df_fixed.loc[ex_mask, 'radius_max_wind_nm'] *= 1.5
+        
+    return df_fixed
+
     
 #TODO: Lamb-Oseen Vortex 
 # https://en.wikipedia.org/wiki/Lamb–Oseen_vortex

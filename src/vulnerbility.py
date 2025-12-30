@@ -10,21 +10,21 @@ def get_damage_ratio(wind_speed_knots, construction='Frame'):
     # Masonry is stronger -> Higher v50 (survives longer)
     
     if construction == 'Frame':
-        # 50% damage at 100 knots, steep curve
+        # 50% damage at 100 knots
         v_50 = 100
         k = 0.12 
     elif construction == 'Masonry':
-        # 50% damage at 120 knots, slightly flatter
+        # 50% damage at 120 knots
         v_50 = 120
         k = 0.12
+    
+    #TODO : Add more construction types as needed
+
     else:
         # Default fallback
         v_50 = 110
         k = 0.12
         
-    # Logistic Function (Sigmoid)
-    # We clip at 0 because negative wind doesn't heal houses
-    # We clip at 1.0 because you can't be more than 100% destroyed
     
     # Only apply damage if wind > 40 knots (minor threshold)
     mdr = np.zeros_like(wind_speed_knots, dtype=float)

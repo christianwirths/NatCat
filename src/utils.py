@@ -6,20 +6,29 @@ from scipy.interpolate import interp1d
 # -------------------------------------------------------------------------
 # SECTION: Track Data Utilities
 # -------------------------------------------------------------------------
-def track_interpolation(df, time_step='30min',kind='linear'):
+def track_interpolation(df, time_step='5min',kind='linear'):
     """Interpolate the track data to finer time intervals (e.g., hourly)."""
 
     # Convert time to datetime
     df['time'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S')
 
+    # If only one data point, return as-is (no interpolation needed)
+    if len(df) <= 1:
+        return df
+
     # Create a new time index with hourly frequency
     new_time_index = pd.date_range(start=df['time'].min(), end=df['time'].max(), freq=time_step)
 
+    # If start and end times are identical, return original data
+    if len(new_time_index) <= 1:
+        return df
+
     # Interpolate latitude and longitude
-    lat_interp = interp1d(df['time'].astype(int), df['latitude'], kind=kind, fill_value="extrapolate")
-    lon_interp = interp1d(df['time'].astype(int), df['longitude'], kind=kind, fill_value="extrapolate")
-    wind_interp = interp1d(df['time'].astype(int), df['max_wind_speed_kt'], kind=kind, fill_value="extrapolate")
-    radius_max_wind_interp = interp1d(df['time'].astype(int), df['radius_max_wind_nm'], kind=kind, fill_value="extrapolate")
+    # Using bounds_error=False to handle edge cases gracefully
+    lat_interp = interp1d(df['time'].astype(int), df['latitude'], kind=kind, fill_value="extrapolate", bounds_error=False)
+    lon_interp = interp1d(df['time'].astype(int), df['longitude'], kind=kind, fill_value="extrapolate", bounds_error=False)
+    wind_interp = interp1d(df['time'].astype(int), df['max_wind_speed_kt'], kind=kind, fill_value="extrapolate", bounds_error=False)
+    radius_max_wind_interp = interp1d(df['time'].astype(int), df['radius_max_wind_nm'], kind=kind, fill_value="extrapolate", bounds_error=False)
 
     # Create new DataFrame with interpolated values
     interp_df = pd.DataFrame({
@@ -47,13 +56,53 @@ def extract_future_trajectory(df,timestamp, tech='OFCL'):
     df_ftrac = df_ftrac[df_ftrac['timestamp'] == timestamp]
     #df_ftrac = df_ftrac[df_ftrac['tau'] != 0]
 
-    # Remove duplicates
+    # Remove duplicates by tau
     df_ftrac = df_ftrac.drop_duplicates(subset=['tau'], keep='last')
 
     # Add tau to timestamp to get future timestamps
     df_ftrac['timestamp'] = df_ftrac['timestamp'] + pd.to_timedelta(df_ftrac['tau'], unit='h')
     
+    # Remove any duplicate timestamps that may have been created
+    df_ftrac = df_ftrac.drop_duplicates(subset=['timestamp'], keep='last')
+    
     return df_ftrac
+
+def prepare_track_data(df, timestamp, model, avail=1, past=True):
+    """Prepare track data for loss estimation by extracting trajectory, filling missing RMW, 
+    interpolating, and calculating velocity/bearing.
+    
+    Args:
+        df: DataFrame containing A-deck forecast data
+        timestamp: Reference timestamp for extracting past/future trajectories
+        model: Model name/technology identifier (e.g., 'OFCL', 'HWRF')
+        avail: Availability flag (1 = available, 0 = unavailable)
+        past: If True, extract past trajectory; if False, extract future forecast
+        
+    Returns:
+        df_out: Processed track DataFrame with interpolated points and derived fields
+        avail: Updated availability flag (0 if processing failed)
+    """
+    from wind_fields import get_heuristic_rmw
+    
+    if past:
+        df_out = extract_past_trajectory(df, timestamp, tech=model)
+    else: 
+        df_out = extract_future_trajectory(df, timestamp, tech=model)
+
+    df_out = get_heuristic_rmw(df_out)
+    try:
+        # Use linear interpolation for past data to ensure monotonic damages
+        # Cubic interpolation can change when new points are added
+        interp_kind = 'linear' if past else 'cubic'
+        df_out = track_interpolation(df_out, time_step='5min', kind=interp_kind)
+    except:
+        avail = 0
+
+    # Add cyclone bearing and velocity
+    df_out = cyclone_velocity(df_out)
+    df_out = cyclone_bearing(df_out)
+
+    return df_out, avail
 
 # -------------------------------------------------------------------------
 # SECTION: Geospatial Utilities
