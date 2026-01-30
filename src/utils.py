@@ -163,8 +163,11 @@ def cyclone_velocity(df):
     # Calculate velocity in km/h
     velocities = distances / time_diffs
     
-    # Append NaN for the last point to maintain the same length
-    velocities = np.append(velocities, 0)
+    # Forward-fill last point with previous velocity (NOT 0, which causes artifacts)
+    if len(velocities) > 0:
+        velocities = np.append(velocities, velocities[-1])
+    else:
+        velocities = np.array([0.0])
     
     df['velocity_kt'] = velocities
     return df
@@ -181,9 +184,6 @@ def beraring(lat1, lon1, lat2, lon2):
     y = np.cos(lat1) * np.sin(lat2) - (np.sin(lat1) * np.cos(lat2) * np.cos(diffLong))
 
     initial_bearing = np.arctan2(x, y)
-
-    # Now we have the initial bearing but math.atan2 return values from -π to +π
-    # so we need to normalize the result to 0° ... 360°
     initial_bearing = np.degrees(initial_bearing)
 
     return (initial_bearing + 360) % 360
@@ -197,8 +197,11 @@ def cyclone_bearing(df):
         df['longitude'].iloc[1:].values
     )
     
-    # Append NaN for the last point to maintain the same length
-    bearings = np.append(bearings, 0)
+    # Forward-fill last point with previous bearing (NOT 0, which causes artifacts)
+    if len(bearings) > 0:
+        bearings = np.append(bearings, bearings[-1])
+    else:
+        bearings = np.array([0.0])
     
     df['bearing_deg'] = bearings
     return df
