@@ -31,7 +31,6 @@ def calculate_tc_impacts(tc_track_file, housing_portfolio,full_report=False):
     tc_data = tc_data[tc_data['max_wind_speed_kt'] >= 40].reset_index(drop=True)
     
     #Add TC velocity and def beraring:
-
     tc_data = cyclone_velocity(tc_data)
     tc_data = cyclone_bearing(tc_data)
 
