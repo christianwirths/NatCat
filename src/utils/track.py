@@ -197,14 +197,14 @@ def prepare_track_data(
         avail: Updated availability flag (0 if processing failed).
     """
     # Import here to avoid circular dependency
-    from hazards.tropical_cyclone import _get_heuristic_rmw
+    from hazards.tropical_cyclone import get_heuristic_rmw
     
     if past:
         df_out = extract_past_trajectory(df, timestamp, tech=model)
     else: 
         df_out = extract_future_trajectory(df, timestamp, tech=model)
 
-    df_out = _get_heuristic_rmw(df_out)
+    df_out = get_heuristic_rmw(df_out)
     
     try:
         # Use linear interpolation for past data to ensure monotonic damages

@@ -16,7 +16,7 @@ from utils.geo import haversine_distance, bearing
 # Wind Field Physics Models
 # -------------------------------------------------------------------------
 
-def _rankine_vortex(r: NDArray[np.float64], max_wind_speed: float, 
+def rankine_vortex(r: NDArray[np.float64], max_wind_speed: float, 
                     radius_max_wind: float, exponent: float = 2) -> NDArray[np.float64]:
     """
     Calculate wind speed using Rankine vortex model.
@@ -45,7 +45,7 @@ def _rankine_vortex(r: NDArray[np.float64], max_wind_speed: float,
     return v_at_r
 
 
-def _get_heuristic_rmw(df: pd.DataFrame) -> pd.DataFrame:
+def get_heuristic_rmw(df: pd.DataFrame) -> pd.DataFrame:
     """
     Apply heuristic estimates for radius of maximum wind (RMW) when data is missing.
     
@@ -82,7 +82,7 @@ def _get_heuristic_rmw(df: pd.DataFrame) -> pd.DataFrame:
     return df_fixed
 
 
-def _max_wind_speeds_at_locations(
+def max_wind_speeds_at_locations(
     df: pd.DataFrame, 
     points: list[tuple[float, float]], 
     vortex: str = "rankine", 
@@ -120,7 +120,7 @@ def _max_wind_speeds_at_locations(
         
         # Calculate symmetric wind field
         if vortex == "rankine":
-            v_symmetric = _rankine_vortex(distances, max_wind_speed, radius_max_wind)
+            v_symmetric = rankine_vortex(distances, max_wind_speed, radius_max_wind)
         elif vortex == "lamb-oseen":
             raise NotImplementedError("Lamb-Oseen vortex not implemented yet.")
         else:
@@ -176,7 +176,7 @@ class TropicalCycloneHazard(HazardModel):
             Shape (N,) array of wind speed values in knots.
         """
         points = [(lat, lon) for lat, lon in coordinates]
-        wind_speeds = _max_wind_speeds_at_locations(
+        wind_speeds = max_wind_speeds_at_locations(
             self.track_data,
             points,
             vortex=self.vortex_model

@@ -1,16 +1,5 @@
-"""Tropical cyclone wind field models.
-
-Physical models for calculating wind speeds based on storm parameters
-and distance from storm center.
-"""
-
 import numpy as np
-from utils.geo import haversine_distance, bearing
-
-
-# -------------------------------------------------------------------------
-# SECTION: Wind Field Models
-# -------------------------------------------------------------------------
+from utils import haversine_vectorized, beraring
 
 # Wind velocity at arbitrary latitude and longitude we calculate by using a Rankine vortex
 # https://en.wikipedia.org/wiki/Rankine_vortex
@@ -112,7 +101,7 @@ def max_wind_speeds_at_locations(df, points, vortex="rankine", asymmetry_factor=
         lat = row['latitude']
         lon = row['longitude']
 
-        distances = haversine_distance(lat, lon, latitudes, longitudes, unit='nm')
+        distances = haversine_vectorized(lat, lon, latitudes, longitudes)
 
         max_wind_speed = row['max_wind_speed_kt']
         radius_max_wind = row['radius_max_wind_nm']
@@ -125,7 +114,7 @@ def max_wind_speeds_at_locations(df, points, vortex="rankine", asymmetry_factor=
             raise ValueError("Unknown vortex type. Use 'rankine' or 'lamb-oseen'.")
         
         # Calculate angle from storm center to each point
-        angles_to_points = bearing(lat, lon, latitudes, longitudes)
+        angles_to_points = beraring(lat, lon, latitudes, longitudes)
         
         # Angle difference: how far clockwise the point is from storm's heading
         # Normalize to [-180, 180]: positive = right of track, negative = left of track
