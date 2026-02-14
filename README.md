@@ -1,6 +1,6 @@
 # NatCat
 
-Natural Catastrophe Modelling Framework
+Natural Catastrophe Modelling Framework. This is a personal project to implement clean code standards and to familiarize myself with the utilization of weather and climate data for real world applications.
 Currently only covering tropical cyclone loss estimation using real-time forecast data and parametric wind field models.
 
 ## What this does
@@ -17,34 +17,13 @@ Currently supports Atlantic basin storms with exposure data pulled via CLIMADA's
 
 **nb3_realworld_assets.ipynb** - Full pipeline: download forecasts, load exposure via CLIMADA, compute time-evolving losses across multiple forecast models (OFCL, AVNO, EMXI, HWRF, CTCX, UKX), and generate animated GIFs showing spatial damage evolution.
 
-## Key capabilities
+**nb4_refactored_pipeline.ipynb** - Refactored pipeline showing the modularized `src/` workflow and an end-to-end loss example using the current codebase.
 
-- Download and parse NHC A-deck forecast files
-- Interpolate storm tracks to 5-minute resolution
-- Rankine vortex wind field with configurable asymmetry factor
-- Heuristic radius of maximum wind when missing from data
-- Vulnerability curves for Frame and Masonry construction types
-- Cumulative max damage tracking (damage only increases over time)
-- Animated visualization of damage footprint evolution
+Note on older notebooks
 
-## Setup
+- `nb1_data_investigation.ipynb`, `nb2_realtime_TC_loss.ipynb`, `nb3_realworld_assets.ipynb`: use the deprecated A/B-deck codepath and related helpers; their original code has been moved to `src/deprecated/` but descriptions remain here for reference.
 
-```
-conda env create -f environment.yml
-conda activate natcat
-```
-
-## Project structure
-
-```
-src/
-    download_TC_data.py    - Fetch forecast data from NHC
-    preprocess_TC_data.py  - Parse and clean track files
-    wind_fields.py         - Rankine vortex model
-    vulnerbility.py        - Damage ratio curves
-    loss.py                - Portfolio damage calculations
-    utils.py               - Track interpolation, bearing/velocity
-    visualization.py       - Trajectory animations
-```
-
-
+## Next features:
+- Synthetic storm tracks to make probabilistic assessments
+- Full parameter uncertainty assessment
+- Integration of automated unit tests using pytest

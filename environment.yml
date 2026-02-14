@@ -12,6 +12,8 @@ dependencies:
   - matplotlib
   - seaborn
   - cartopy
-  # We will need these later for geospatial work:
-  - geopandas 
+  - geopandas
   - shapely
+  - climada
+  - pillow
+  - ipykernel
