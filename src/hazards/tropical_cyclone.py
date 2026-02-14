@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from .base import HazardModel, Coordinates, IntensityValues
+from .base import HazardModel, Coordinates, IntensityValues, DateTime
 from utils.geo import haversine_distance, bearing
 
 
@@ -188,3 +188,60 @@ class TropicalCycloneHazard(HazardModel):
         """Return peril identifier: 'TC' for Tropical Cyclone."""
         return 'TC'
     
+    def compute_intensity_at_timestep(self, coordinates: Coordinates, timestamp) -> IntensityValues:
+        """
+        Compute maximum wind speed at locations for all track points up to timestamp.
+        Note: This leads into the repetitive search for max velocities and is
+              a little bit computaionally ineffictient but keeps the code easy and clean. 
+              #TODO: Make effiencient!1!11!
+        Args:
+            coordinates: Shape (N, 2) array of [lat, lon] pairs.
+            timestamp: Timestamp to calculate intensity up to (includes all prior points).
+        
+        Returns:
+            Shape (N,) array of max wind values in knots.
+        """
+        # Get all track data up to and including this timestamp
+        track_subset = self.track_data[self.track_data['time'] <= timestamp]
+        
+        if len(track_subset) == 0:
+            return np.zeros(len(coordinates))
+        
+        # Calculate max wind speeds considering all track points up to this time
+        points = [(lat, lon) for lat, lon in coordinates]
+        wind_speeds = max_wind_speeds_at_locations(
+            track_subset,
+            points,
+            vortex=self.vortex_model
+        )
+        return wind_speeds
+    
+    # Time evolution 
+    def compute_intensity_over_time(self, coordinates: Coordinates, timestamps: DateTime) -> pd.DataFrame:
+        """
+        Compute wind speed at given locations for one specific timestamp 
+        or between two timestamps as storm evolves.
+        
+        Args:
+            coordinates: Shape (N, 2) array of [lat, lon] pairs.
+            timestamps: Shape (1,) for one specific point or
+                        Shape (2,) for an start and end timestamp. 
+
+        Returns: 
+            Shape (N,) array of max wind values in knots. 
+        """
+        points = [(lat, lon) for lat, lon in coordinates]
+
+        if len(timestamps) == 1:
+            track_timewindow = self.track_data[self.track_data["time"] == timestamps[0]]
+        elif len(timestamps) == 2:
+            track_timewindow = self.track_data[(self.track_data["time"] >= timestamps[0]) & (self.track_data["time"] <= timestamps[1])]
+        else:
+            raise ValueError("Timestamps should be either a single timestamp or a pair of start and end timestamps.")
+
+        wind_speeds = max_wind_speeds_at_locations(
+            track_timewindow,
+            points,
+            vortex=self.vortex_model
+        )
+        return wind_speeds

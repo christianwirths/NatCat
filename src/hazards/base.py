@@ -10,10 +10,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
 
-
 Coordinates = NDArray[np.float64]      # Shape (N, 2): [latitude, longitude] pairs
 IntensityValues = NDArray[np.float64]  # Shape (N,): intensity per location
-
+DateTime = NDArray[np.datetime64]
 
 class HazardModel(ABC):
     """

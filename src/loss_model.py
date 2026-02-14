@@ -78,3 +78,53 @@ class LossCalculator:
         total_loss = self.portfolio_results['loss'].sum()
         return total_loss
         
+    # Time evolution portfolio loss calculation
+    def calculate_portfolio_loss_over_time(self, portfolio: pd.DataFrame, timestamps: pd.Series) -> pd.DataFrame:
+        """
+        Calculate portfolio losses over a series of timestamps.
+        
+        Args:
+            portfolio: DataFrame with 'latitude', 'longitude', 'tiv' columns.
+            timestamps: Series of timestamps to evaluate. Minimum one timestamp required.
+        
+        Returns:
+            DataFrame with losses for each timestamp.
+        """
+
+        # Check if just one timestamp or multiple timestamps are provided
+        if len(timestamps) == 0:
+            raise ValueError("At least one timestamp must be provided.")
+        
+        # check if timestamps are sorted, if not sort them
+        if not timestamps.is_monotonic_increasing:
+            print("Timestamps are not sorted. Sorting timestamps for loss calculation.")
+            timestamps = timestamps.sort_values()
+        
+        coordinates = portfolio[['latitude', 'longitude']].to_numpy()
+        construction_types = portfolio['construction'].to_numpy() if 'construction' in portfolio.columns else None
+        tiv = portfolio['tiv'].to_numpy()
+        
+        results = []
+        for timestamp in timestamps:
+            # Get intensity up to this timestamp (considers all track points <= timestamp)
+            intensity = self.hazard.compute_intensity_at_timestep(coordinates, timestamp)
+            
+            # Calculate damage ratio
+            if construction_types is not None:
+                damage_ratio = self.vulnerability.get_damage_ratio(intensity, construction_types)
+            else:
+                damage_ratio = self.vulnerability.get_damage_ratio(intensity)
+            
+            # Calculate losses
+            loss = damage_ratio * tiv
+            
+            # Create result dataframe for this timestamp
+            result_df = portfolio.copy()
+            result_df['timestamp'] = timestamp
+            result_df['intensity'] = intensity
+            result_df['damage_ratio'] = damage_ratio
+            result_df['loss'] = loss
+            
+            results.append(result_df)
+        
+        return pd.concat(results, ignore_index=True)
