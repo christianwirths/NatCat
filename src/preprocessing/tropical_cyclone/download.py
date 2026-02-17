@@ -15,7 +15,7 @@ DATA_DIR = os.path.join(WORKING_DIR,"../../../", "data", "raw")
 # -------------------------------------------------------------------------
 # SECTION: Download Functions
 # -------------------------------------------------------------------------
-def download_storm_forecast(year, basin, storm_id, deck ="b"):
+def download_storm_forecast(year, basin, storm_id, deck ="b", filename: str = None):
     """
     Downloads the ATCF a/b-deck (or real time) file for a specific storm.
     
@@ -23,6 +23,7 @@ def download_storm_forecast(year, basin, storm_id, deck ="b"):
         year (int): Year of the storm (e.g., 2018)
         basin (str): 'al' for Atlantic, 'ep' for East Pacific
         storm_id (str): 2-digit ID (e.g., '14' for Michael)
+        filename (str, optional): Custom filename for the downloaded file. Defaults to None.
     """
     current_year = datetime.now().year
 
@@ -32,17 +33,24 @@ def download_storm_forecast(year, basin, storm_id, deck ="b"):
         base_url = REALTIME_URL
         # Real-time files usually don't have the year folder structure
         # Format: https://ftp.nhc.noaa.gov/atcf/aid_public/aal142025.dat.gz
-        filename = f"{deck}{basin}{storm_id}{year}.dat.gz"
+        if filename is None:
+            filename = f"{deck}{basin}{storm_id}{year}.dat.gz"
         url = f"{base_url}{filename}"
     else:
         print(f"Year is {year}. Checking ARCHIVE source...")
         base_url = ARCHIVE_URL
         # Archive files are sorted by year
         # Format: https://ftp.nhc.noaa.gov/atcf/archive/2018/aal142018.dat.gz
-        filename = f"{deck}{basin}{storm_id}{year}.dat.gz"
+        if filename is None:
+            filename = f"{deck}{basin}{storm_id}{year}.dat.gz"
         url = f"{base_url}{year}/{filename}"
     
     local_path = os.path.join(DATA_DIR, filename)
+    
+    # Check if file already exists
+    if os.path.exists(local_path):
+        print(f"File already exists at {local_path}. Skipping download.")
+        return local_path
     
     print(f"Downloading {url}...")
     
