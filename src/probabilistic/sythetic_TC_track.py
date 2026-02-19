@@ -5,6 +5,9 @@ Synthetic tropical cyclone track generation module.
 
 import glob
 import os
+import pandas as pd
+from scipy import stats
+import numpy as np
 
 from preprocessing.tropical_cyclone import clean_track_data, check_a_deck_quality
 from utils.track import cyclone_velocity, cyclone_bearing, track_interpolation
@@ -49,3 +52,91 @@ def load_historical_tracks(folder_path: str, basin: str = "al") -> tuple[list, l
             failed_files.append((file, e))
 
     return track_data, failed_files
+
+
+
+
+def get_tc_origin(track_data: list, num_syntetic_origins: int) -> pd.DataFrame:
+    """
+    Generates new syntetic storm origins based on the hisotical distribution using gaussian_kde 
+
+    Args:
+        track_data (list): List of pandas Dataframe holding the track data of individual cyclones
+        num_syntetic_origins (int): Number of synthetic origins to generarte
+    
+    """
+    
+    lat = []
+    lon = []
+    time= []
+
+    for track in track_data: 
+        first = track.iloc[0]
+        lat.append(first['latitude'])
+        lon.append(first['longitude'])
+        time.append(first['time'])
+
+    #Transform to pd.Dataframe 
+    df = pd.DataFrame({'latitude': lat, 'longitude': lon, 'time': time})
+
+    # Drop any rows with NaN/inf in lat/lon (can occur from interpolation edge cases)
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=['latitude', 'longitude'])
+
+    # Transform time into day of the year
+    df['day_of_year'] = df['time'].dt.dayofyear
+
+    historic_origin = np.vstack([df['latitude'].values,df['longitude'].values])
+    #TODO: Check for day of the year stability of also adding day of year sampling
+
+    #Fit a kde to historical data 
+    kde = stats.gaussian_kde(historic_origin)
+
+    #Generate synthetic 
+    synthetic_origins = kde.resample(num_syntetic_origins)
+    
+    synthetic_lats = synthetic_origins[0, :]
+    synthetic_lons = synthetic_origins[1, :]
+
+    synthetic_origins_df = pd.DataFrame({
+        'storm_id': [f"SYN_{i}" for i in range(num_syntetic_origins)],
+        'latitude': synthetic_lats,
+        'longitude': synthetic_lons
+    })
+    
+    return synthetic_origins_df, kde
+
+
+
+
+
+
+
+def prepare_mcmc_data(track_data: list) -> pd.DataFrame:
+    """
+    Prepares our track data to build an emperical MC 
+    """
+
+
+    print(f"Stacking {len(track_data)} storm tracks...")
+    
+    processed_dfs = []
+
+    # Create strom ID: 
+    for i, df in enumerate(track_data):
+        temp_df = df.copy()
+        temp_df['storm_id'] = f"HIST_{i}" 
+        processed_dfs.append(temp_df)
+
+    master_df = pd.concat(processed_dfs, ignore_index=True)
+
+    #Add day_of_year
+    master_df['day_of_year'] = pd.to_datetime(master_df['date']).dt.dayofyear
+
+    # Get variable deltas 
+    master_df['delta_vmax'] = master_df.groupby('storm_id')['wind_speed'].diff()
+    master_df['delta_radius'] = master_df.groupby('storm_id')['radius'].diff()
+
+    # Drop rows with NaNs (the first hour of every storm)
+    master_df = master_df.dropna(subset=['delta_vmax', 'bearing', 'moving_velocity'])
+
+    return master_df

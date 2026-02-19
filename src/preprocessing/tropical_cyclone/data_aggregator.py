@@ -5,6 +5,7 @@ Data aggregator to dowload and aggregate multitude of TC data-tracks
 import os
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 from .download import download_storm_forecast, extract_gzip
 
 
@@ -57,40 +58,51 @@ def get_stormfilenames(year, basin: str = "al", deck: str = "B"):
 
 
 
-def aggregate_tc_data(years: list, basin: str, deck: str="B") -> None:
+def aggregate_tc_data(years: list, basin: str, deck: str = "B") -> None:
     """
-    Docstring for aggregate_tc_data
-    
-    :param years: List of years to aggregate data for
-    :param basin: Description
-    :param deck: Description
-    :param data_dir: Directory to store aggregated data
-    """
+    Downloads and extracts all B-deck track files for the given years and basin.
 
+    Args:
+        years: List of years to aggregate data for.
+        basin: Basin identifier (e.g., 'al' for Atlantic).
+        deck: Deck type — only 'B' is supported.
+    """
     if deck == "A":
-        raise ValueError("Deck A is not supported yet. Please use Deck B.") 
-    #TODO: Implement aggregation for A deck 
+        raise ValueError("Deck A is not supported yet. Please use Deck B.")
+    elif deck != "B":
+        raise ValueError("Invalid deck specified. Please use Deck B.")
 
-    elif deck != "B":      
-        raise ValueError("Invalid deck specified. Please use Deck B. (A deck is not supported yet)")
-    
-
+    # Collect all files across all years first so we know the total
+    print(f"Fetching file lists for {len(years)} year(s)...")
+    all_files = []  # list of (year, filename)
     for year in years:
-        print(f"Processing year {year} for basin {basin}...")
         storm_files = get_stormfilenames(year, basin, deck)
         if not storm_files:
-            print(f"No storm files found for year {year} and basin {basin}. Skipping.")
-            continue
-        for filename in storm_files:
-            print(f"Downloading and processing {filename}...")
-            local_path = download_storm_forecast(year, basin, storm_id=filename[3:5], deck=deck, filename=filename)
-            if local_path:
-                extract_gzip(local_path)
-            else:
-                print(f"Failed to download {filename}. Skipping.")
-            # Remove .gz file 
+            print(f"  No files found for {year} ({basin.upper()}), skipping.")
+        else:
+            all_files.extend((year, f) for f in storm_files)
+
+    if not all_files:
+        print("Nothing to download.")
+        return
+
+    print(f"Found {len(all_files)} file(s) in total. Starting download...")
+    failed = []
+    for year, filename in tqdm(all_files, desc="Downloading", unit="file"):
+        local_path = download_storm_forecast(year, basin, storm_id=filename[3:5], deck=deck, filename=filename, verbose=False)
+        if local_path:
+            extract_gzip(local_path, verbose=False)
             if os.path.exists(local_path):
                 os.remove(local_path)
+        else:
+            failed.append(filename)
+
+    if failed:
+        print(f"\n{len(failed)} file(s) failed to download:")
+        for f in failed:
+            print(f"  {f}")
+    else:
+        print("\nAll files downloaded successfully.")
 
     
 

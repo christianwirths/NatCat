@@ -23,3 +23,4 @@ def kt2kmh(
     Convert Knots to Kilometers per Hour.
     """
     return kt * 1.852
+
