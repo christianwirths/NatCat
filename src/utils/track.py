@@ -5,6 +5,7 @@ Functions for extracting, interpolating, and enriching storm track data
 with derived fields like velocity and bearing.
 """
 
+import warnings
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
@@ -50,13 +51,15 @@ def track_interpolation(df: pd.DataFrame, time_step: str = '5min', kind: str = '
                                      kind=kind, fill_value="extrapolate", bounds_error=False)
 
     # Create new DataFrame with interpolated values
-    interp_df = pd.DataFrame({
-        'time': new_time_index,
-        'latitude': lat_interp(new_time_index.astype(int)),
-        'longitude': lon_interp(new_time_index.astype(int)),
-        'max_wind_speed_kt': wind_interp(new_time_index.astype(int)),
-        'radius_max_wind_nm': radius_max_wind_interp(new_time_index.astype(int))
-    })
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=RuntimeWarning)
+        interp_df = pd.DataFrame({
+            'time': new_time_index,
+            'latitude': lat_interp(new_time_index.astype(int)),
+            'longitude': lon_interp(new_time_index.astype(int)),
+            'max_wind_speed_kt': wind_interp(new_time_index.astype(int)),
+            'radius_max_wind_nm': radius_max_wind_interp(new_time_index.astype(int))
+        })
 
     return interp_df
 
@@ -120,6 +123,11 @@ def cyclone_velocity(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with added 'velocity_kt' column (velocity in knots).
     """
+    if len(df) == 0:
+        df = df.copy()
+        df['velocity_kt'] = pd.Series(dtype=float)
+        return df
+
     # Calculate distance between consecutive points
     distances = haversine_distance(
         df['latitude'].iloc[:-1].values,
@@ -155,6 +163,11 @@ def cyclone_bearing(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with added 'bearing_deg' column (bearing in degrees).
     """
+    if len(df) == 0:
+        df = df.copy()
+        df['bearing_deg'] = pd.Series(dtype=float)
+        return df
+
     bearings = bearing(
         df['latitude'].iloc[:-1].values,
         df['longitude'].iloc[:-1].values,

@@ -88,6 +88,9 @@ def aggregate_tc_data(years: list, basin: str, deck: str="B") -> None:
                 extract_gzip(local_path)
             else:
                 print(f"Failed to download {filename}. Skipping.")
+            # Remove .gz file 
+            if os.path.exists(local_path):
+                os.remove(local_path)
 
     
 

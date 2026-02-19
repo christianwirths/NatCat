@@ -1,3 +1,4 @@
+import warnings
 import pandas as pd
 import os
 
@@ -32,7 +33,9 @@ def parse_lat_lon(coord_str):
 
 def clean_track_data(file_path, is_best_track=True):
     ATCF_COLS = B_DECK_COLS if is_best_track else A_DECK_COLS
-    df = pd.read_csv(file_path, names=ATCF_COLS, sep=",", skipinitialspace=True, on_bad_lines='warn')
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=pd.errors.ParserWarning)
+        df = pd.read_csv(file_path, names=ATCF_COLS, sep=",", skipinitialspace=True, on_bad_lines='skip', index_col=False)
 
     # Filter Logic
     if is_best_track:
@@ -60,6 +63,43 @@ def clean_track_data(file_path, is_best_track=True):
     
     return final_df
 
+
+# -------------------------------------------------------------------------
+# SECTION: A-deck specific quality control 
+# -------------------------------------------------------------------------
+
+def check_a_deck_quality(df: pd.DataFrame) -> tuple[bool, str]:
+    """
+    Perform quality control of B/A-deck track data.
+
+    Args:
+        df: DataFrame containing track data with columns 'latitude', 'longitude',
+            'max_wind_speed_kt', and 'timestamp'.
+    Returns:
+        (passed, reason): True/empty-string on success, False/description on failure.
+    """
+    if df.empty:
+        return False, "DataFrame is empty"
+
+    required_columns = ['latitude', 'longitude', 'max_wind_speed_kt', 'timestamp']
+    for col in required_columns:
+        if col not in df.columns:
+            return False, f"Missing required column '{col}'"
+
+    if df[required_columns].isnull().any().any():
+        missing = df[required_columns].isnull().sum()
+        return False, f"Missing values in critical columns: {missing[missing > 0].to_dict()}"
+
+    if not ((df['latitude'].between(-90, 90)).all() and (df['longitude'].between(-180, 180)).all()):
+        return False, "Latitude or longitude values out of bounds"
+
+    if (df['max_wind_speed_kt'] < 0).any() or (df['max_wind_speed_kt'] > 300).any():
+        return False, "Invalid wind speed values (negative or > 300 kt)"
+
+    if df['timestamp'].isnull().any():
+        return False, "Null timestamp values found"
+
+    return True, ""
 
 
 # -------------------------------------------------------------------------

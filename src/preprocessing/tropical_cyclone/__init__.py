@@ -17,4 +17,5 @@ __all__ = [
     'preprocess_B_deck',
     'aggregate_tc_data',
     'get_stormfilenames',
+    'check_a_deck_quality',
 ]
