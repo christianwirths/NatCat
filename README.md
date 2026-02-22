@@ -21,6 +21,8 @@ Currently supports Atlantic basin storms with exposure data pulled via CLIMADA's
 
 **nb5_probabilistic_storms.ipynb** - Generating probabilistic tropical cyclone tracks from historical data using an emperical MCMC.
 
+**nb6_financials.ipynb** - Here we combine the storm track generator with the loss model to predict average annual loss over thousands of syntethic years. 
+
 Note on older notebooks
 
 - `nb1_data_investigation.ipynb`, `nb2_realtime_TC_loss.ipynb`, `nb3_realworld_assets.ipynb`: use the deprecated A/B-deck codepath and related helpers; their original code has been moved to `src/deprecated/` but descriptions remain here for reference.

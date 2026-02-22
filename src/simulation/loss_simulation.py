@@ -1,9 +1,6 @@
 """
 Loss simulation module.
-
-Orchestrates the full synthetic TC loss pipeline across many simulated years. 
-Wraps the generation, hazard and loss calculation into one class so we can 
-easily run the simulation and drill into specific years afterwards.
+Runs the full synthetic TC loss pipeline across many simulated years. 
 """
 
 import numpy as np
@@ -17,8 +14,7 @@ from utils.track import track_interpolation, cyclone_velocity, cyclone_bearing
 
 class LossSimulator:
     """
-    Runs the full synthetic TC loss simulation and stores per-year results 
-    so you can drill into specific years and their storm tracks afterwards.
+    Runs the full synthetic TC loss simulation and stores results every year
 
     Usage:
         sim = LossSimulator(model, portfolio, vulnerability, buf=5.0)
