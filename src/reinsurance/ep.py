@@ -21,9 +21,9 @@ class ExceedenceProbabilityCalculator:
         self.simulation = simulation
         
     
-    def calculate_OEP(self, loss_threshold = 0) -> float:
+    def calculate_eOEP(self, loss_threshold = 0) -> float:
         """
-        Calculate the exceedence probability for a given location and loss threshold.
+        Calculate the emperical exceedence probability for a given location and loss threshold.
         
         Args:
             loss_threshold: The loss level for which to calculate the exceedence probability.
@@ -41,9 +41,9 @@ class ExceedenceProbabilityCalculator:
         oep = exceedences / total_years if total_years > 0 else 0
         return oep
     
-    def calculate_AEP(self, loss_threshold = 0) -> float:
+    def calculate_eAEP(self, loss_threshold = 0) -> float:
         """
-        Calculate the annual exceedence probability for a given location and loss threshold.
+        Calculate the emperical annual exceedence probability for a given location and loss threshold.
         
         Args:
             loss_threshold: The loss level for which to calculate the annual exceedence probability.
@@ -61,7 +61,7 @@ class ExceedenceProbabilityCalculator:
         return aep
     
 
-    def EP_curve(self, loss_thresholds= np.arange(0, 10) * 1e10, method='OEP') -> Dict[float, float]:
+    def emperical_EP_curve(self, loss_thresholds= np.arange(0, 10) * 1e10, method='OEP') -> Dict[float, float]:
         """
         Calculate the exceedence probability curve for a range of loss thresholds.
         
@@ -73,9 +73,9 @@ class ExceedenceProbabilityCalculator:
             Dictionary mapping each loss threshold to its exceedence probability.
         """
         if method == 'OEP':
-            return {threshold: self.calculate_OEP(threshold) for threshold in loss_thresholds}
+            return {threshold: self.calculate_eOEP(threshold) for threshold in loss_thresholds}
         elif method == 'AEP':
-            return {threshold: self.calculate_AEP(threshold) for threshold in loss_thresholds}
+            return {threshold: self.calculate_eAEP(threshold) for threshold in loss_thresholds}
         else:
             raise ValueError("Method must be 'OEP' or 'AEP'.")
         
@@ -90,7 +90,7 @@ class ExceedenceProbabilityCalculator:
         """
         import matplotlib.pyplot as plt
         
-        ep_values = self.EP_curve(loss_thresholds, method)
+        ep_values = self.emperical_EP_curve(loss_thresholds, method)
         fig = plt.figure(figsize=(10, 6))
         plt.plot(list(ep_values.keys()), list(ep_values.values()), marker='o')
         plt.xscale('log')
@@ -111,9 +111,9 @@ class ExceedenceProbabilityCalculator:
             Return period in years (float). Returns np.inf if exceedence probability is 0.
         """
         if method == 'OEP':
-            ep = self.calculate_OEP(loss_threshold)
+            ep = self.calculate_eOEP(loss_threshold)
         elif method == 'AEP':
-            ep = self.calculate_AEP(loss_threshold)
+            ep = self.calculate_eAEP(loss_threshold)
         else:
             raise ValueError("Method must be 'OEP' or 'AEP'.")
         
@@ -128,3 +128,4 @@ class ExceedenceProbabilityCalculator:
         """
         return self.simulation.aal
     
+
