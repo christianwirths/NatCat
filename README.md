@@ -28,6 +28,5 @@ Note on older notebooks
 - `nb1_data_investigation.ipynb`, `nb2_realtime_TC_loss.ipynb`, `nb3_realworld_assets.ipynb`: use the deprecated A/B-deck codepath and related helpers; their original code has been moved to `src/deprecated/` but descriptions remain here for reference.
 
 ## Next features:
-- Synthetic storm tracks to make probabilistic assessments
-- Full parameter uncertainty assessment
-- Integration of automated unit tests using pytest
+- Parameter uncertainty assessment & Calibration
+- unit tests 
