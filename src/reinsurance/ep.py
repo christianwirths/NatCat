@@ -165,6 +165,25 @@ class ExceedenceProbabilityCalculator:
             raise ValueError("Method must be 'OEP' or 'AEP'.")
         
 
+    def emperical_EP_curve(self, loss_thresholds= np.arange(0, 10) * 1e10, method='OEP') -> Dict[float, float]:
+        """
+        Calculate the exceedence probability curve for a range of loss thresholds. uses the OEP or AEP method with GPD fit to the tail of the distribution.
+        
+        Args:
+            loss_thresholds: List of loss thresholds to calculate exceedence probabilities for.
+            method: 'OEP' for Occurrence Exceedence Probability, 'AEP' for Annual Exceedence Probability.
+
+        Returns:
+            Dictionary mapping each loss threshold to its exceedence probability.
+        """
+        if method == 'OEP':
+            return {threshold: self.calculate_eOEP(threshold) for threshold in loss_thresholds}
+        elif method == 'AEP':
+            return {threshold: self.calculate_eAEP(threshold) for threshold in loss_thresholds}
+        else:
+            raise ValueError("Method must be 'OEP' or 'AEP'.")
+        
+
     def EP_curve(self, loss_thresholds= np.arange(0, 10) * 1e10, method='OEP') -> Dict[float, float]:
         """
         Calculate the exceedence probability curve for a range of loss thresholds. uses the OEP or AEP method with GPD fit to the tail of the distribution.
