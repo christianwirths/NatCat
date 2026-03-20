@@ -9,6 +9,16 @@ This project downloads operational hurricane forecast data (A-deck files from NH
 
 Currently supports Atlantic basin storms with exposure data pulled via CLIMADA's LitPop API.
 
+---
+
+### Example: Damage Evolution of Hurricane Michael (2018)
+
+Spatial damage evolution as Hurricane Michael made landfall on the Florida Panhandle (October 2018). Colors show the damage ratio (0–1) applied to each insured location as the OFCL best-track wind field sweeps through the portfolio.
+
+![Hurricane Michael damage evolution](animations/michael_damage_evolution.gif)
+
+---
+
 ## Notebooks
 
 **nb1_data_investigation.ipynb** - Explore and visualize raw track data, compare best-track vs forecast models.
