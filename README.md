@@ -19,6 +19,14 @@ Spatial damage evolution as Hurricane Michael made landfall on the Florida Panha
 
 ---
 
+### Example: Aggregate Exceedance Probability Curve
+
+Combining the synthetic track generator with the loss model over thousands of simulated years yields a portfolio loss distribution. The aggregate exceedance probability (AEP) curve below shows, for each loss threshold, the annual probability of total losses exceeding it — the core output used to price catastrophe risk and size reinsurance layers.
+
+![Aggregate exceedance probability curve](plots/aep_curve.png)
+
+---
+
 ## Notebooks
 
 **nb1_data_investigation.ipynb** - Explore and visualize raw track data, compare best-track vs forecast models.
@@ -40,3 +48,18 @@ Note on older notebooks
 ## Next features:
 - Parameter uncertainty assessment & Calibration
 - unit tests 
+
+## Install
+
+```bash
+# Clone and create the conda environment
+git clone https://github.com/christianwirths/NatCat.git
+cd NatCat
+conda env create -f environment.yml
+conda activate NatCat
+
+# Launch the notebooks
+jupyter lab
+```
+
+The notebooks add `src/` to the path (`sys.path.append('../src')`), so no separate install of the package is required. Raw track data is downloaded on demand from the NHC; exposure is pulled via CLIMADA's LitPop API.
