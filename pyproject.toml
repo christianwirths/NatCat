@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "natcat"
+version = "0.1.0"
+description = "A transparent, end-to-end tropical cyclone catastrophe model."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Christian Wirths" }]
+keywords = ["catastrophe-modelling", "tropical-cyclone", "insurance", "hazard", "risk"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "requests",
+    "tqdm",
+    "beautifulsoup4",
+    "scikit-learn",
+    "global-land-mask",
+]
+
+[project.optional-dependencies]
+geo = ["cartopy", "climada"]
+dev = ["pytest", "ruff"]
+docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-jupyter"]
+
+[tool.setuptools.packages.find]
+include = ["natcat*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "NPY"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning:pkg_resources"]

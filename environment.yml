@@ -3,17 +3,32 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - pandas
+  # Core
   - numpy
+  - pandas
   - scipy
+  - matplotlib
   - requests
   - tqdm
-  - jupyterlab
-  - matplotlib
-  - seaborn
+  - beautifulsoup4
+  - scikit-learn
+  - global-land-mask
+  # Optional: geospatial / reference model
   - cartopy
   - geopandas
   - shapely
   - climada
   - pillow
+  # Notebooks
+  - jupyterlab
   - ipykernel
+  - seaborn
+  # Development
+  - pytest
+  - ruff
+  - pip
+  - pip:
+      - mkdocs-material
+      - mkdocstrings[python]
+      - mkdocs-jupyter
+      - -e .

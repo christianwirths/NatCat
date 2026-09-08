@@ -1,10 +1,30 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
 venv/
+.venv/
 .env
 
-# Data (Avoid committing large datasets)
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+
+# Documentation build
+site/
+
+# Notebook execution outputs
+notebooks/_output/
+
+# Data (avoid committing large datasets)
 data/
 !data/.gitkeep
 .DS_Store
+
+# MkDocs/Material plugin cache
+.cache/

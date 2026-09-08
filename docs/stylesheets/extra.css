@@ -1,0 +1,72 @@
+/* NatCat documentation theme -------------------------------------------- */
+
+/* Custom "indigo-ish" primary colour (#1E3A8A) registered as the `custom`
+   Material for MkDocs palette. See:
+   https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#custom-colors */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: #1e3a8a;
+  --md-primary-fg-color--light: #3652a3;
+  --md-primary-fg-color--dark: #152a63;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffff;
+  --md-typeset-a-color: #1e3a8a;
+}
+
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
+  --md-primary-fg-color: #1e3a8a;
+  --md-primary-fg-color--light: #3652a3;
+  --md-primary-fg-color--dark: #101d3f;
+  --md-typeset-a-color: #7c9eff;
+}
+
+/* Slightly smaller, tighter code blocks */
+.md-typeset code,
+.md-typeset pre {
+  font-size: 0.78rem;
+}
+
+/* Figure captions: an italic line directly beneath an image */
+.md-typeset .caption,
+.md-typeset em.caption {
+  display: block;
+  margin-top: -0.6rem;
+  font-size: 0.78rem;
+  color: var(--md-default-fg-color--light);
+  text-align: center;
+}
+
+/* Feature card grid on the landing page */
+.md-typeset .grid.cards {
+  display: grid;
+  grid-gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin: 1.2rem 0;
+}
+
+.md-typeset .grid.cards > div {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  padding: 1rem 1.2rem;
+  background-color: var(--md-default-bg-color);
+  transition: border-color 0.15s;
+}
+
+.md-typeset .grid.cards > div:hover {
+  border-color: var(--md-primary-fg-color);
+}
+
+.md-typeset .grid.cards > div p:first-child {
+  margin-top: 0;
+  font-weight: 600;
+}
+
+/* Parameter / reference tables */
+.md-typeset table:not([class]) th {
+  background-color: var(--md-default-fg-color--lightest);
+}
+
+/* Source note under figures */
+.md-typeset .fig-source {
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+}

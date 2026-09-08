@@ -1,0 +1,110 @@
+site_name: NatCat
+site_description: A tropical-cyclone catastrophe-modelling framework in Python
+repo_url: https://github.com/christianwirths/NatCat
+repo_name: christianwirths/NatCat
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+  - mkdocs-jupyter:
+      execute: false
+      include_source: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Data: getting-started/data.md
+  - User guide:
+      - Concepts & workflow: user-guide/concepts.md
+      - Data model: user-guide/data-model.md
+      - Single-event loss: user-guide/single-event-loss.md
+      - Stochastic event set: user-guide/stochastic-event-set.md
+      - Financial metrics: user-guide/financial-metrics.md
+      - Plotting: user-guide/plotting.md
+      - Configuration: user-guide/configuration.md
+  - Methodology:
+      - Wind field: methodology/wind-field.md
+      - Vulnerability: methodology/vulnerability.md
+      - Stochastic track generator: methodology/stochastic-track-generator.md
+      - Exceedance probability: methodology/exceedance-probability.md
+      - Limitations & validation: methodology/limitations.md
+  - Examples:
+      - Single-event loss: notebooks/01_single_event_loss.ipynb
+      - Stochastic event set: notebooks/02_stochastic_event_set.ipynb
+      - Portfolio risk metrics: notebooks/03_portfolio_risk_metrics.ipynb
+  - API reference:
+      - Data: api/data.md
+      - Tracks: api/tracks.md
+      - Hazards: api/hazards.md
+      - Vulnerability: api/vulnerability.md
+      - Exposure: api/exposure.md
+      - Loss: api/loss.md
+      - Stochastic: api/stochastic.md
+      - Financial: api/financial.md
+      - Plotting: api/plotting.md
+      - Utils: api/utils.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
