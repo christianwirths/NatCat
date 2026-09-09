@@ -59,10 +59,18 @@ _RMW_DEFAULT: float = 15.0
 #: Multiplier applied to RMW for extratropical (``TY == 'EX'``) fixes.
 _EX_RMW_FACTOR: float = 1.5
 
+#: Default time step for processed tracks. The hazard footprint is the maximum
+#: wind over the *discrete* track positions, so a coarse step under-samples the
+#: swath of a compact, fast-moving storm: at 1 h Hurricane Michael (RMW ~10 nm
+#: at landfall, 13 kt translation) leaves gaps between successive centres and
+#: the modelled loss halves. Five minutes keeps the centre spacing well inside
+#: the radius of maximum wind for any realistic storm.
+DEFAULT_TRACK_FREQ: str = "5min"
+
 
 def interpolate_track(
     df: pd.DataFrame,
-    freq: str = "1h",
+    freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
 ) -> pd.DataFrame:
     """Resample a track onto a regular time grid.
@@ -77,7 +85,7 @@ def interpolate_track(
     df : pandas.DataFrame
         Track with a unique, sorted ``time`` column and at least ``latitude``
         and ``longitude``. Never mutated.
-    freq : str, default '1h'
+    freq : str, default DEFAULT_TRACK_FREQ ('5min')
         Pandas frequency string for the output grid, e.g. ``'30min'``.
     method : {'linear', 'cubic'}, default 'linear'
         Interpolation kind. ``'cubic'`` silently degrades to ``'linear'`` when
@@ -292,7 +300,7 @@ def fill_missing_rmw(df: pd.DataFrame) -> pd.DataFrame:
 def prepare_track(
     df: pd.DataFrame,
     *,
-    freq: str = "1h",
+    freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
 ) -> pd.DataFrame:
     """Turn a raw best track into a processed track.
@@ -304,8 +312,12 @@ def prepare_track(
     ----------
     df : pandas.DataFrame
         Raw track, e.g. from :func:`natcat.data.read_best_track`. Never mutated.
-    freq : str, default '1h'
-        Time step of the output grid.
+    freq : str, default DEFAULT_TRACK_FREQ ('5min')
+        Time step of the output grid. Keep it fine: the wind footprint is a
+        maximum over the discrete track positions, and a step coarser than the
+        time the storm needs to travel one radius of maximum wind produces a
+        "string of pearls" footprint and under-estimates loss (see
+        :data:`DEFAULT_TRACK_FREQ`).
     method : {'linear', 'cubic'}, default 'linear'
         Interpolation kind.
 

@@ -226,7 +226,8 @@ def test_load_best_track_offline(michael_path):
     from natcat.tracks import load_best_track
 
     track = load_best_track(2018, "al", "14", download=False)
-    assert len(track) == 217
+    assert len(track) == 2593  # 216 h on the default 5-minute grid
+    assert len(load_best_track(2018, "al", "14", freq="1h", download=False)) == 217
     assert track["storm_id"].iloc[0] == "AL142018"
 
 
@@ -235,3 +236,10 @@ def test_load_best_track_missing_without_download(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         load_best_track(1899, "al", "99", data_dir=tmp_path, download=False)
+
+
+def test_prepare_track_default_step_is_five_minutes(tiny_track):
+    out = prepare_track(tiny_track)
+    steps = out["time"].diff().dropna().unique()
+    assert len(steps) == 1
+    assert pd.Timedelta(steps[0]) == pd.Timedelta("5min")

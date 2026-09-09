@@ -29,6 +29,7 @@ from natcat.plotting.style import (
     SAFFIR_SIMPSON_COLORS,
     SAFFIR_SIMPSON_ORDER,
     category_colormap,
+    damage_colormap,
     style_context,
 )
 
@@ -44,12 +45,72 @@ __all__ = [
     "plot_footprint",
     "plot_genesis",
     "plot_track",
+    "tiling_marker_size",
 ]
 
 _CARTOPY_HINT = (
     "cartopy is required for natcat.plotting.maps. Install it with "
     "`conda install -c conda-forge cartopy` (recommended) or `pip install cartopy`."
 )
+
+
+#: Damage ratios at or below this are not drawn on footprint maps (0.1 %).
+DAMAGE_RATIO_FLOOR: float = 1e-3
+
+
+def tiling_marker_size(
+    ax: Axes,
+    lon: Sequence[float],
+    lat: Sequence[float],
+    *,
+    scale: float = 1.15,
+    bounds: tuple[float, float] = (3.0, 80.0),
+) -> float:
+    """Scatter marker area (points²) at which the given points tile the map.
+
+    Exposure data usually sit on a regular grid (LitPop: 150 arc-seconds). A
+    marker whose diameter matches the grid spacing turns the point cloud into
+    a continuous, raster-like field instead of a set of overlapping discs, and
+    the size adapts automatically to the map extent and figure size.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Cartopy ``GeoAxes`` the points will be drawn on, with its extent set.
+    lon, lat : sequence of float
+        Point coordinates in degrees.
+    scale : float, default 1.15
+        Marker diameter as a multiple of the median nearest-neighbour spacing;
+        slightly above one closes hairline gaps between neighbours.
+    bounds : tuple of float, default (3.0, 80.0)
+        Clip range for the returned area, so sparse random portfolios still
+        get visible markers and coarse grids do not become blobs.
+
+    Returns
+    -------
+    float
+        Value to pass as ``s`` to :meth:`matplotlib.axes.Axes.scatter`.
+    """
+    from scipy.spatial import cKDTree
+
+    points = np.c_[np.asarray(lon, dtype=float), np.asarray(lat, dtype=float)]
+    if len(points) < 2:
+        return float(bounds[0])
+    distances, _ = cKDTree(points).query(points, k=2)
+    spacing = float(np.median(distances[:, 1]))
+    if not np.isfinite(spacing) or spacing <= 0.0:
+        return float(bounds[0])
+
+    ax.apply_aspect()
+    bbox = ax.get_window_extent()
+    lon_min, lon_max, lat_min, lat_max = ax.get_extent()
+    dots_per_point = ax.figure.dpi / 72.0
+    points_per_degree = (
+        min(bbox.width / max(lon_max - lon_min, 1e-9), bbox.height / max(lat_max - lat_min, 1e-9))
+        / dots_per_point
+    )
+    diameter = spacing * points_per_degree * scale
+    return float(np.clip(diameter**2, *bounds))
 
 
 def _require_cartopy():
@@ -394,10 +455,16 @@ def plot_footprint(
     portfolio: pd.DataFrame | None = None,
     track: pd.DataFrame | None = None,
     min_tiv: float = 0.0,
+    min_value: float | None = None,
     title: str | None = None,
     cbar_label: str | None = None,
 ) -> tuple[Figure, Axes]:
     """Plot a spatial hazard/loss footprint over exposure.
+
+    Damaged locations are drawn as markers sized to the exposure grid (see
+    :func:`tiling_marker_size`), weakest first, on a colour scale that starts
+    pale so that trace damage in the tropical-storm-force fringe reads as
+    faint rather than as a solid field.
 
     Parameters
     ----------
@@ -417,6 +484,10 @@ def plot_footprint(
         Storm track to overlay thin and dark.
     min_tiv : float, default 0.0
         Drop portfolio locations at or below this TIV before plotting.
+    min_value : float, optional
+        Locations whose ``value`` is at or below this are not drawn. Defaults
+        to :data:`DAMAGE_RATIO_FLOOR` (0.1 %) for ``"damage_ratio"`` and to
+        zero otherwise.
     title : str, optional
         Left-aligned bold title.
     cbar_label : str, optional
@@ -468,55 +539,38 @@ def plot_footprint(
                 )
 
         if value == "damage_ratio":
-            damaged = results[results["damage_ratio"] > 0]
-            mappable = ax.scatter(
-                damaged["longitude"],
-                damaged["latitude"],
-                c=damaged["damage_ratio"],
-                cmap="YlOrRd",
-                norm=Normalize(vmin=0.0, vmax=1.0),
-                s=6,
-                alpha=0.85,
-                linewidth=0,
-                transform=ccrs.PlateCarree(),
-                zorder=5,
-            )
+            floor = DAMAGE_RATIO_FLOOR if min_value is None else min_value
+            cmap, norm = damage_colormap(), Normalize(vmin=0.0, vmax=1.0)
             default_label = "Damage ratio"
         elif value == "loss":
-            damaged = results[results["loss"] > 0]
-            losses = damaged["loss"].clip(lower=1.0)
-            norm = LogNorm(vmin=losses.min(), vmax=losses.max()) if len(losses) else None
-            mappable = ax.scatter(
-                damaged["longitude"],
-                damaged["latitude"],
-                c=losses,
-                cmap="magma_r",
-                norm=norm,
-                s=6,
-                alpha=0.85,
-                linewidth=0,
-                transform=ccrs.PlateCarree(),
-                zorder=5,
-            )
+            floor = 0.0 if min_value is None else min_value
+            positive = results.loc[results["loss"] > max(floor, 0.0), "loss"]
+            cmap = "magma_r"
+            norm = LogNorm(vmin=positive.min(), vmax=positive.max()) if len(positive) else None
             default_label = "Loss (USD)"
         elif value == "intensity":
-            damaged = results[results["intensity"] > 0]
+            floor = 0.0 if min_value is None else min_value
             cmap, norm = category_colormap()
-            mappable = ax.scatter(
-                damaged["longitude"],
-                damaged["latitude"],
-                c=damaged["intensity"],
-                cmap=cmap,
-                norm=norm,
-                s=6,
-                alpha=0.9,
-                linewidth=0,
-                transform=ccrs.PlateCarree(),
-                zorder=5,
-            )
             default_label = "Max wind speed (kt)"
         else:
             raise ValueError(f"value must be 'damage_ratio', 'loss' or 'intensity', got {value!r}")
+
+        # Draw weak locations first so the damage core is never hidden under
+        # its own fringe, and size markers so gridded exposure tiles the map.
+        damaged = results[results[value] > floor].sort_values(value, kind="stable")
+        marker_size = tiling_marker_size(ax, damaged["longitude"], damaged["latitude"])
+        mappable = ax.scatter(
+            damaged["longitude"],
+            damaged["latitude"],
+            c=damaged[value],
+            cmap=cmap,
+            norm=norm,
+            s=marker_size,
+            alpha=0.9,
+            linewidth=0,
+            transform=ccrs.PlateCarree(),
+            zorder=5,
+        )
 
         if track is not None:
             ax.plot(

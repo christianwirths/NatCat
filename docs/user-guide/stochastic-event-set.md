@@ -73,13 +73,27 @@ from natcat.loss import LossSimulator
 portfolio = synthetic_portfolio(n=500, bounds=(28.0, 31.5, -87.5, -83.5), seed=1)
 vulnerability = WindVulnerability("Frame")
 
-simulator = LossSimulator(catalog, portfolio, vulnerability, buffer_deg=5.0, freq="1h", seed=7)
+simulator = LossSimulator(catalog, portfolio, vulnerability, buffer_deg=5.0, seed=7)
 results = simulator.run(n_years=1000, progress=True)
 ```
 
 `buffer_deg` pads the portfolio's bounding box; only synthetic storms whose track passes within
 that buffer are processed through the (comparatively expensive) hazard/loss pipeline &#8212; the
 rest are skipped without ever building a `TropicalCycloneHazard` for them.
+
+`freq` is the time step the 3-hourly synthetic tracks are interpolated to before the wind field is
+evaluated. Because the footprint is a maximum over discrete track positions, a coarse step
+under-samples compact storms and biases losses low (see
+[Wind field: temporal sampling](../methodology/wind-field.md#temporal-sampling)). On the Florida
+LitPop portfolio, 50 simulated years with the same seed give:
+
+| `freq` | AAL | second-largest annual loss | run time |
+|---|---|---|---|
+| `"1h"` | $3.8 B | $41 B | 1x |
+| `"15min"` | $4.6 B | $56 B | 3x |
+| `"5min"` (default) | $4.9 B | $62 B | 8x |
+
+Use `freq="1h"` for quick exploration and the default for any number you intend to quote.
 
 ## `SimulationResults`
 
@@ -112,7 +126,7 @@ curves, return periods and AAL.
 | `catalog.fit(data_dir)` | `self` |
 | `catalog.generate(n_storms=None, n_years=None)` | catalog DataFrame |
 | `catalog.save(path)` / `SyntheticTCCatalog.load(path)` | pickle round-trip |
-| `LossSimulator(catalog, portfolio, vulnerability, *, buffer_deg=5.0, freq="1h", seed=None)` | simulator instance |
+| `LossSimulator(catalog, portfolio, vulnerability, *, buffer_deg=5.0, freq="5min", seed=None)` | simulator instance |
 | `simulator.run(n_years, *, progress=True)` | `SimulationResults` |
 
 See the full [API reference](../api/stochastic.md) for parameter and type details.

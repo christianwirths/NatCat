@@ -83,3 +83,31 @@ def test_times_property(tiny_processed):
 
 def test_repr(tiny_processed):
     assert "TropicalCycloneHazard" in repr(TropicalCycloneHazard(tiny_processed))
+
+
+def test_default_track_step_does_not_alias_compact_storm():
+    """A compact, fast storm must leave a continuous swath, not a string of pearls.
+
+    The footprint is a maximum over discrete track positions. With a 1 h step a
+    storm with RMW 10 nm travelling at 15 kt has centres 15 nm apart, so points
+    on the track line between two centres never see the eyewall. The default
+    5-minute step keeps every point within a fraction of the RMW of a centre.
+    """
+    from natcat.tracks import prepare_track
+
+    raw = pd.DataFrame(
+        {
+            "time": pd.to_datetime(["2020-01-01 00:00", "2020-01-01 08:00"]),
+            "latitude": [25.0, 27.0],  # 120 nm in 8 h = 15 kt
+            "longitude": [-80.0, -80.0],
+            "max_wind_speed_kt": [100.0, 100.0],
+            "radius_max_wind_nm": [10.0, 10.0],
+        }
+    )
+    coords = np.c_[np.arange(25.3, 26.7, 0.02), np.full(70, -80.0)]
+
+    fine = TropicalCycloneHazard(prepare_track(raw)).compute_intensity(coords)
+    coarse = TropicalCycloneHazard(prepare_track(raw, freq="1h")).compute_intensity(coords)
+
+    assert fine.min() > 0.9 * 100.0
+    assert coarse.min() < 0.8 * 100.0

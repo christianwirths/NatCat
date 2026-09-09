@@ -10,7 +10,12 @@ import pandas as pd
 
 from ..hazards.tropical_cyclone import TropicalCycloneHazard
 from ..stochastic.catalog import SyntheticTCCatalog
-from ..tracks.processing import add_heading, add_translation_velocity, interpolate_track
+from ..tracks.processing import (
+    DEFAULT_TRACK_FREQ,
+    add_heading,
+    add_translation_velocity,
+    interpolate_track,
+)
 from ..vulnerability.base import VulnerabilityModel
 from .calculator import LossCalculator
 
@@ -92,9 +97,13 @@ class LossSimulator:
         Damage function.
     buffer_deg : float, default 5.0
         Degrees of padding around the portfolio bounding box.
-    freq : str, default '1h'
+    freq : str, default DEFAULT_TRACK_FREQ ('5min')
         Time step the synthetic tracks are interpolated to before the wind
-        field is evaluated.
+        field is evaluated. The footprint is a maximum over discrete track
+        positions, so a coarse step under-samples compact storms and biases
+        losses low: on the Florida LitPop portfolio a 1-hour step gives about
+        25 % less AAL than 5 minutes (and a thinner tail) for roughly one
+        eighth of the run time. Use ``'1h'`` for quick exploration only.
     seed : int, optional
         If given, re-seeds the catalog's generator so the run is reproducible.
 
@@ -117,7 +126,7 @@ class LossSimulator:
         vulnerability: VulnerabilityModel,
         *,
         buffer_deg: float = 5.0,
-        freq: str = "1h",
+        freq: str = DEFAULT_TRACK_FREQ,
         seed: int | None = None,
     ) -> None:
         self.catalog = catalog

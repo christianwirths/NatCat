@@ -24,6 +24,14 @@ API, a documentation site, and a test suite.
 
 ### Changed
 
+- **Track interpolation defaults to 5 minutes** (`DEFAULT_TRACK_FREQ`), restoring the pre-refactor
+  behaviour of the single-event pipeline. The hazard footprint is a maximum over discrete track
+  positions, so the 1-hour default introduced during the refactor under-sampled compact,
+  fast-moving storms (Hurricane Michael's loss halved and the footprint broke up into rings).
+- **Footprint maps redrawn.** `plot_footprint` and `animate_footprint` size markers to the
+  exposure grid (`tiling_marker_size`), draw weak locations first, hide damage ratios at or below
+  0.1 % (`min_value`) and use a pale-to-red colour scale, so trace damage in the tropical-storm
+  fringe no longer appears as a solid yellow field.
 - **Vectorised wind field.** `max_wind_footprint`/`max_wind_history` replace a Python
   `DataFrame.iterrows()` loop with `(T, N)` broadcasting in bounded chunks; footprint computation
   no longer scales with a per-timestamp Python loop.

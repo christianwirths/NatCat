@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Final
 
 import matplotlib as mpl
+import numpy as np
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter
@@ -40,6 +41,7 @@ __all__ = [
     "add_source_note",
     "apply_style",
     "category_colormap",
+    "damage_colormap",
     "format_currency_axis",
     "save",
     "style_context",
@@ -114,6 +116,27 @@ def category_colormap() -> tuple[ListedColormap, BoundaryNorm]:
     cmap = ListedColormap(colors, name="saffir_simpson")
     norm = BoundaryNorm(boundaries, cmap.N)
     return cmap, norm
+
+
+def damage_colormap() -> ListedColormap:
+    """Sequential colormap for damage ratios: pale rose at zero, deep red at one.
+
+    Matplotlib's ``Reds`` with the near-white start trimmed off, so a location
+    with a small but non-zero damage ratio (the tropical-storm-force fringe of
+    a footprint) is still visible against the grey exposure layer while
+    remaining clearly lighter than the damage core.
+
+    Returns
+    -------
+    matplotlib.colors.ListedColormap
+
+    Examples
+    --------
+    >>> damage_colormap().N
+    256
+    """
+    base = mpl.colormaps["Reds"]
+    return ListedColormap(base(np.linspace(0.12, 1.0, 256)), name="natcat_damage")
 
 
 def _build_rc() -> dict[str, object]:

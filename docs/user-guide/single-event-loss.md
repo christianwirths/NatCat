@@ -8,14 +8,18 @@ its full spatial and temporal evolution.
 ```python
 from natcat.tracks import load_best_track
 
-track = load_best_track(2018, "al", "14", freq="1h")
+track = load_best_track(2018, "al", "14")
 ```
 
 `load_best_track` downloads (if needed), reads, and runs the full `prepare_track` pipeline:
 de-duplicate &rarr; `fill_missing_rmw` &rarr; `interpolate_track` &rarr; `add_translation_velocity`
 &rarr; `add_heading`. The result matches the [processed track](data-model.md#processed-track)
-schema. `freq` controls the interpolation step (default `"1h"`); a finer step gives a smoother
-wind field at the cost of more points.
+schema. `freq` controls the interpolation step (default `"5min"`). Keep it fine: the footprint is
+a maximum over the *discrete* track positions, so a step coarser than the time the storm needs to
+travel one radius of maximum wind leaves gaps between successive centres, produces a
+"string of pearls" footprint and under-estimates loss. For Hurricane Michael (RMW about 10 nm at
+landfall, 13 kt translation) a 1-hour step halves the modelled portfolio loss; see
+[Wind field: temporal sampling](../methodology/wind-field.md#temporal-sampling).
 
 ![Hurricane Michael (2018) best track approaching the Florida Panhandle](../assets/figures/michael_track.png){ width="100%" }
 *Figure: OFCL best track for Hurricane Michael (2018), colored by Saffir&#8211;Simpson category.*

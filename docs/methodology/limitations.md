@@ -18,6 +18,11 @@ not been calibrated or validated against observed claims data.
   observed TC wind profiles (see [Wind field](wind-field.md)); it is kept for continuity with
   earlier results in this project rather than for physical fidelity. Pass `exponent=0.5` for a more
   realistic profile if reproducibility with prior runs is not required.
+- **Footprints are sampled in time, not integrated.** The maximum wind at a location is the
+  maximum over the discrete, interpolated track positions. The default 5-minute step keeps the
+  sampling error small for any realistic storm, but a coarser `freq` (as used for quick runs)
+  under-samples compact, fast-moving storms and biases losses low &#8212; by about a quarter of the
+  AAL at 1 hour (see [Wind field](wind-field.md#temporal-sampling)).
 - **No gust factors.** All wind speeds are 1-minute sustained wind; no conversion to 3-second gust
   is applied, which some vulnerability curves in the literature expect as their input basis.
 

@@ -22,7 +22,7 @@ site/
 notebooks/_output/
 
 # Data (avoid committing large datasets)
-data/
+/data/
 !data/.gitkeep
 .DS_Store
 

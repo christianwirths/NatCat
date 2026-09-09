@@ -9,7 +9,7 @@ import pandas as pd
 
 from ..config import get_data_dir
 from ..data.atcf import read_best_track
-from .processing import prepare_track
+from .processing import DEFAULT_TRACK_FREQ, prepare_track
 
 __all__ = ["load_best_track"]
 
@@ -21,7 +21,7 @@ def load_best_track(
     basin: str,
     storm_number: str | int,
     *,
-    freq: str = "1h",
+    freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
     data_dir: str | Path | None = None,
     download: bool = True,
@@ -39,8 +39,9 @@ def load_best_track(
         Two-letter basin code, e.g. ``'al'``.
     storm_number : str or int
         ATCF cyclone number, e.g. ``'14'`` or ``14``.
-    freq : str, default '1h'
-        Time step of the processed track.
+    freq : str, default DEFAULT_TRACK_FREQ ('5min')
+        Time step of the processed track (see :func:`natcat.tracks.prepare_track`
+        for why a coarse step is a bad idea).
     method : {'linear', 'cubic'}, default 'linear'
         Interpolation kind.
     data_dir : str or pathlib.Path, optional

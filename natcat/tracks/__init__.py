@@ -7,6 +7,7 @@ from .forecast import (
 )
 from .pipeline import load_best_track
 from .processing import (
+    DEFAULT_TRACK_FREQ,
     add_heading,
     add_translation_velocity,
     fill_missing_rmw,
@@ -15,6 +16,7 @@ from .processing import (
 )
 
 __all__ = [
+    "DEFAULT_TRACK_FREQ",
     "add_heading",
     "add_translation_velocity",
     "extract_future_trajectory",

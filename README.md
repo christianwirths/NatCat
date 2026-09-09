@@ -63,7 +63,7 @@ from natcat import (
     load_best_track, synthetic_portfolio, plotting,
 )
 
-track = load_best_track(2018, "al", "14")                      # NHC id AL142018, 1-hourly track
+track = load_best_track(2018, "al", "14")                      # NHC id AL142018, 5-minute track
 portfolio = synthetic_portfolio(n=2000, bounds=(29.0, 31.0, -86.5, -84.5), seed=1)
 
 calc = LossCalculator(TropicalCycloneHazard(track), WindVulnerability())
@@ -113,11 +113,11 @@ Reference run on the Florida / Gulf-coast LitPop portfolio above (12,201 locatio
 
 | Metric | Value |
 |---|---|
-| Average annual loss (AAL) | $6.7 B |
-| 1-in-10 AEP loss | $3.5 B |
-| 1-in-50 AEP loss | $54 B |
-| 1-in-100 AEP loss | $112 B |
-| 1-in-250 AEP loss | $260 B |
+| Average annual loss (AAL) | $8.7 B |
+| 1-in-10 AEP loss | $6.1 B |
+| 1-in-50 AEP loss | $77 B |
+| 1-in-100 AEP loss | $147 B |
+| 1-in-250 AEP loss | $312 B |
 
 These are ground-up losses from an uncalibrated research model. See the documentation's
 [limitations page](docs/methodology/limitations.md) before reading anything into the numbers.

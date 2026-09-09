@@ -104,6 +104,24 @@ cumulative running maxima via `numpy.maximum.accumulate` &#8212; one pass over t
 of how many timestamps are later sampled from it. `TropicalCycloneHazard.compute_intensity_history`
 uses exactly this to support time-evolving loss without recomputing the footprint at every step.
 
+## Temporal sampling
+
+Because the footprint is a maximum over discrete track positions, the track has to be sampled
+finely enough that every location near the track is visited by the eyewall. Between two centres a
+distance \(d\) apart, a point on the track line is at best \(d/2\) from the nearest centre;
+with \(d > 2\,R_{\max}\) it never sees \(V_{\max}\) and the swath degenerates into a string of
+discs. The step must therefore satisfy
+
+\[
+\Delta t \ll \frac{R_{\max}}{c}
+\]
+
+with \(c\) the translation speed. For a compact hurricane (\(R_{\max} = 10\) nm, \(c = 15\) kt)
+that is well under 40 minutes; at a 1-hour step Hurricane Michael's modelled loss on the Florida
+LitPop portfolio drops by half. `prepare_track`/`load_best_track` therefore default to
+`DEFAULT_TRACK_FREQ = "5min"`. The stochastic `LossSimulator` interpolates synthetic tracks at its
+own `freq`; its default trades some of this accuracy for run time on thousands of storms.
+
 ## References
 
 - Rankine vortex &#8212; classical fluid-dynamics idealization, applied to tropical cyclone wind

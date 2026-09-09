@@ -42,7 +42,7 @@ extent = (-87.5, -83.5, 28.0, 31.5)  # (lon_min, lon_max, lat_min, lat_max)
 
 plotting.base_map(extent)                                          # requires cartopy (geo extra)
 plotting.plot_track(track)                                          # colored by Saffir-Simpson category
-plotting.plot_footprint(result, extent=extent, portfolio=portfolio, track=track)  # footprint + portfolio markers
+plotting.plot_footprint(result, extent=extent, portfolio=portfolio, track=track)  # damage on exposure; min_value hides trace damage
 plotting.plot_genesis(historical_genesis, synthetic_genesis)        # historical vs. KDE genesis density
 plotting.plot_catalog(catalog, extent=(-100, -10, 0, 50), max_storms=200)  # sample of synthetic tracks
 ```

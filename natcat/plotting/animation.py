@@ -15,17 +15,25 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from natcat.plotting.maps import _category_from_kt, _require_cartopy, base_map
+from natcat.plotting.maps import (
+    DAMAGE_RATIO_FLOOR,
+    _category_from_kt,
+    _require_cartopy,
+    base_map,
+    tiling_marker_size,
+)
 from natcat.plotting.style import (
     PALETTE,
     SAFFIR_SIMPSON_COLORS,
     SAFFIR_SIMPSON_ORDER,
+    damage_colormap,
     style_context,
 )
 
 __all__ = ["animate_footprint"]
 
-_VALUE_CMAPS = {"damage_ratio": "YlOrRd", "loss": "magma_r", "intensity": "YlOrRd"}
+_VALUE_CMAPS = {"damage_ratio": damage_colormap(), "loss": "magma_r", "intensity": "YlOrRd"}
+_VALUE_FLOORS = {"damage_ratio": DAMAGE_RATIO_FLOOR, "loss": 0.0, "intensity": 0.0}
 _VALUE_LABELS = {
     "damage_ratio": "Damage ratio",
     "loss": "Loss (USD)",
@@ -137,10 +145,12 @@ def animate_footprint(
         vmax = (
             1.0 if value == "damage_ratio" else float(np.nanmax(history[value].to_numpy()) or 1.0)
         )
+        locations = history[["longitude", "latitude"]].drop_duplicates()
+        marker_size = tiling_marker_size(ax, locations["longitude"], locations["latitude"])
         damage_scatter = ax.scatter(
             [],
             [],
-            s=8,
+            s=marker_size,
             cmap=_VALUE_CMAPS[value],
             vmin=0.0,
             vmax=vmax,
@@ -221,7 +231,7 @@ def animate_footprint(
             current_time = times[frame_index]
             snapshot = history[history["time"] <= current_time]
             latest = snapshot.groupby(["latitude", "longitude"], as_index=False)[value].max()
-            damaged = latest[latest[value] > 0]
+            damaged = latest[latest[value] > _VALUE_FLOORS[value]].sort_values(value, kind="stable")
             if len(damaged):
                 damage_scatter.set_offsets(np.c_[damaged["longitude"], damaged["latitude"]])
                 damage_scatter.set_array(damaged[value].to_numpy())
