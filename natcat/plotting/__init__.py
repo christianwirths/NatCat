@@ -21,6 +21,7 @@ never imported at module import time, so ``import natcat`` and
 from __future__ import annotations
 
 from natcat.plotting.animation import animate_footprint
+from natcat.plotting.calibration import plot_calibration, plot_value_dependent_curves
 from natcat.plotting.curves import (
     plot_annual_loss_distribution,
     plot_ep_curve,
@@ -49,6 +50,8 @@ from natcat.plotting.style import (
 )
 
 __all__ = [
+    "plot_calibration",
+    "plot_value_dependent_curves",
     "PALETTE",
     "SAFFIR_SIMPSON",
     "add_source_note",

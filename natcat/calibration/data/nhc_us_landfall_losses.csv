@@ -1,0 +1,29 @@
+storm_id,name,year,basin,storm_number,observed_loss_usd,loss_year,damage_driver,include,source,notes
+AL111989,Hugo,1989,al,11,7.0e9,1989,mixed,True,NHC TCR / NCEI,South Carolina; wind and surge
+AL041992,Andrew,1992,al,04,26.5e9,1992,wind,True,NHC TCR,South Florida; wind-dominated
+AL171995,Opal,1995,al,17,3.0e9,1995,mixed,True,NHC TCR,Florida Panhandle; surge and wind
+AL061996,Fran,1996,al,06,3.2e9,1996,mixed,True,NHC TCR,North Carolina; wind and surge
+AL032004,Charley,2004,al,03,15.0e9,2004,wind,True,NHC TCR,SW Florida; compact wind-dominated core
+AL062004,Frances,2004,al,06,9.0e9,2004,mixed,True,NHC TCR,East Florida; wind and rain
+AL092004,Ivan,2004,al,09,14.2e9,2004,mixed,True,NHC TCR,Alabama/Florida; surge share large
+AL112004,Jeanne,2004,al,11,6.9e9,2004,wind,True,NHC TCR,East Florida; mostly wind
+AL042005,Dennis,2005,al,04,2.23e9,2005,mixed,True,NHC TCR,Florida Panhandle
+AL122005,Katrina,2005,al,12,108.0e9,2005,surge,False,NHC TCR (2011 update),Levee failures and surge dominate; not a wind case
+AL182005,Rita,2005,al,18,12.0e9,2005,surge,False,NHC TCR,SW Louisiana surge
+AL252005,Wilma,2005,al,25,20.6e9,2005,wind,True,NHC TCR,South Florida; wind-dominated
+AL072008,Gustav,2008,al,07,4.3e9,2008,mixed,True,NHC TCR,Louisiana
+AL092008,Ike,2008,al,09,29.5e9,2008,surge,False,NHC TCR,Galveston surge dominates
+AL092011,Irene,2011,al,09,15.8e9,2011,flood,False,NHC TCR,Inland flooding dominates
+AL182012,Sandy,2012,al,18,50.0e9,2012,surge,False,NHC TCR,Extratropical at landfall; surge dominates
+AL142016,Matthew,2016,al,14,10.0e9,2016,flood,False,NHC TCR,Coastal and inland flooding
+AL092017,Harvey,2017,al,09,125.0e9,2017,flood,False,NHC TCR,Rainfall flooding dominates
+AL112017,Irma,2017,al,11,50.0e9,2017,mixed,True,NHC TCR,Florida; wind with surge in the Keys and SW coast
+AL062018,Florence,2018,al,06,24.0e9,2018,flood,False,NHC TCR,Rainfall flooding dominates
+AL142018,Michael,2018,al,14,25.0e9,2018,wind,True,NHC TCR,Florida Panhandle; wind-dominated with local surge
+AL052019,Dorian,2019,al,05,1.6e9,2019,surge,False,NHC TCR,US impact mostly Outer Banks surge
+AL082020,Hanna,2020,al,08,1.1e9,2020,mixed,True,NHC TCR,South Texas
+AL092020,Isaias,2020,al,09,4.8e9,2020,wind,True,NHC TCR,Long track NC to New England; wind and tornadoes
+AL132020,Laura,2020,al,13,19.0e9,2020,mixed,True,NHC TCR,SW Louisiana; wind-dominated at Lake Charles
+AL192020,Sally,2020,al,19,7.3e9,2020,mixed,True,NHC TCR,Alabama/Florida; surge and rain share large
+AL262020,Delta,2020,al,26,2.9e9,2020,mixed,True,NHC TCR,SW Louisiana
+AL282020,Zeta,2020,al,28,4.4e9,2020,wind,True,NHC TCR,Fast-moving; wind-dominated

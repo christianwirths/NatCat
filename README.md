@@ -122,6 +122,31 @@ Reference run on the Florida / Gulf-coast LitPop portfolio above (12,201 locatio
 These are ground-up losses from an uncalibrated research model. See the documentation's
 [limitations page](docs/methodology/limitations.md) before reading anything into the numbers.
 
+## Calibration
+
+`natcat.calibration` fits a value-dependent vulnerability model against observed US landfall
+losses (NHC Tropical Cyclone Reports, CPI-normalised), so the loss numbers above need not stay
+uncalibrated:
+
+```python
+from natcat.calibration import Calibrator, build_cases, load_observed_losses, normalise_losses
+from natcat.vulnerability import ValueDependentVulnerability
+
+observed = normalise_losses(load_observed_losses(), reference_year=2018)
+cases = build_cases(observed)                      # footprint per storm, once
+result = Calibrator(cases, ValueDependentVulnerability()).fit(seed=0)
+print(result.summary())
+```
+
+<p align="center">
+  <img src="docs/assets/figures/calibration_scatter.png" alt="Modelled vs observed storm loss, before and after calibration" width="72%">
+</p>
+
+See [Calibration](docs/user-guide/calibration.md) and
+[Calibration methodology](docs/methodology/calibration.md) &#8212; including a frank list of
+caveats around the bundled loss data &#8212; before using a calibrated model for anything beyond
+exploration.
+
 ## Example notebooks
 
 | Notebook | Content |
@@ -129,6 +154,7 @@ These are ground-up losses from an uncalibrated research model. See the document
 | [`01_single_event_loss`](notebooks/01_single_event_loss.ipynb) | Best track to portfolio loss, footprint map, time-evolving damage |
 | [`02_stochastic_event_set`](notebooks/02_stochastic_event_set.ipynb) | Genesis sampling, Markov track walk, historical vs synthetic comparison |
 | [`03_portfolio_risk_metrics`](notebooks/03_portfolio_risk_metrics.ipynb) | Multi-year simulation, AAL, AEP/OEP, return periods, layer pricing |
+| [`04_calibration`](notebooks/04_calibration.ipynb) | Observed losses, cases, fitting `ValueDependentVulnerability`, applying it to Hurricane Michael |
 
 ## Repository layout
 

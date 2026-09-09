@@ -1,0 +1,216 @@
+{
+  "reference_year": 2018,
+  "n_storms": 19,
+  "method": "global",
+  "n_evaluations": 10148,
+  "initial_params": {
+    "threshold_kt": 40.0,
+    "v50_ref": 105.0,
+    "v50_slope": 0.0,
+    "k": 0.12,
+    "scale": 1.0
+  },
+  "params": {
+    "threshold_kt": 34.00971840126314,
+    "v50_ref": 90.0494585649343,
+    "v50_slope": 29.999999932566226,
+    "k": 0.05000000611432945,
+    "scale": 0.9999999551544185
+  },
+  "initial_objective": 0.6855071738506032,
+  "objective": 0.16400075323403912,
+  "typical_factor_error_initial": 6.72904768782237,
+  "typical_factor_error": 2.5407975654573662,
+  "storms": [
+    {
+      "storm_id": "AL111989",
+      "name": "Hugo",
+      "observed": 14175000000.0,
+      "modelled_initial": 127244849570.24384,
+      "modelled": 24349468974.75638,
+      "log_ratio_initial": 0.9531171450667132,
+      "log_ratio": 0.2349664267804609,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL041992",
+      "name": "Andrew",
+      "observed": 47428011404.133995,
+      "modelled_initial": 489330395775.48944,
+      "modelled": 73292128126.91458,
+      "log_ratio_initial": 1.01356727808168,
+      "log_ratio": 0.18902241652823765,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL171995",
+      "name": "Opal",
+      "observed": 4942913385.826772,
+      "modelled_initial": 29231752282.314842,
+      "modelled": 8189443611.477301,
+      "log_ratio_initial": 0.7718718492674871,
+      "log_ratio": 0.21927139648729146,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL061996",
+      "name": "Fran",
+      "observed": 5121223709.369025,
+      "modelled_initial": 35367422993.86958,
+      "modelled": 16000763920.581442,
+      "log_ratio_initial": 0.8392296691594977,
+      "log_ratio": 0.49476697012086324,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL032004",
+      "name": "Charley",
+      "observed": 19939121228.163048,
+      "modelled_initial": 378077555968.64386,
+      "modelled": 84719710677.28842,
+      "log_ratio_initial": 1.277874883012508,
+      "log_ratio": 0.6282784501144186,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL062004",
+      "name": "Frances",
+      "observed": 11963472736.89783,
+      "modelled_initial": 73405235686.26248,
+      "modelled": 13106357834.499928,
+      "log_ratio_initial": 0.7878697731864674,
+      "log_ratio": 0.039624756815867065,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL092004",
+      "name": "Ivan",
+      "observed": 18875701429.327686,
+      "modelled_initial": 49324062117.14371,
+      "modelled": 12272463434.804102,
+      "log_ratio_initial": 0.41715573684391727,
+      "log_ratio": -0.18697135235917167,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL112004",
+      "name": "Jeanne",
+      "observed": 9171995764.955002,
+      "modelled_initial": 126608888818.1484,
+      "modelled": 27287280029.553326,
+      "log_ratio_initial": 1.1400003516945183,
+      "log_ratio": 0.47349640223287437,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL042005",
+      "name": "Dennis",
+      "observed": 2867142857.142857,
+      "modelled_initial": 31215619945.268456,
+      "modelled": 6400409643.673254,
+      "log_ratio_initial": 1.0369226320106613,
+      "log_ratio": 0.34875843843151555,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL252005",
+      "name": "Wilma",
+      "observed": 26485714285.714283,
+      "modelled_initial": 456698040662.0635,
+      "modelled": 33206966332.43705,
+      "log_ratio_initial": 1.2366174585951761,
+      "log_ratio": 0.09821751205342856,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL072008",
+      "name": "Gustav",
+      "observed": 5015002322.3409195,
+      "modelled_initial": 10956494768.66436,
+      "modelled": 6922928942.220848,
+      "log_ratio_initial": 0.3394004972385915,
+      "log_ratio": 0.14001873551425373,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL112017",
+      "name": "Irma",
+      "observed": 51223990208.07834,
+      "modelled_initial": 38994882511.921684,
+      "modelled": 12297144204.163689,
+      "log_ratio_initial": -0.11846578960784548,
+      "log_ratio": -0.6196691399164808,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL142018",
+      "name": "Michael",
+      "observed": 25000000000.0,
+      "modelled_initial": 22243818152.517555,
+      "modelled": 6617298789.238396,
+      "log_ratio_initial": -0.050730672693401827,
+      "log_ratio": -0.5772592639955154,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL082020",
+      "name": "Hanna",
+      "observed": 1067272024.7295208,
+      "modelled_initial": 54035993.33838955,
+      "modelled": 131554457.49180488,
+      "log_ratio_initial": -1.295591986404175,
+      "log_ratio": -0.909169557897484,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL092020",
+      "name": "Isaias",
+      "observed": 4657187017.001545,
+      "modelled_initial": 1537037425.573077,
+      "modelled": 2413342775.346266,
+      "log_ratio_initial": -0.48143923575671743,
+      "log_ratio": -0.28550466746819125,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL132020",
+      "name": "Laura",
+      "observed": 18434698608.96445,
+      "modelled_initial": 38771902765.22526,
+      "modelled": 8781570925.779678,
+      "log_ratio_initial": 0.32288107324475473,
+      "log_ratio": -0.32206382834032415,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL192020",
+      "name": "Sally",
+      "observed": 7082805255.023184,
+      "modelled_initial": 13779451734.524002,
+      "modelled": 5492581480.119439,
+      "log_ratio_initial": 0.28902663709717086,
+      "log_ratio": -0.11042879262172157,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL262020",
+      "name": "Delta",
+      "observed": 2813717156.1051,
+      "modelled_initial": 823799523.0781133,
+      "modelled": 1370915496.0590055,
+      "log_ratio_initial": -0.5334589024206529,
+      "log_ratio": -0.31226975313740307,
+      "weight": 1.0
+    },
+    {
+      "storm_id": "AL282020",
+      "name": "Zeta",
+      "observed": 4269088098.918083,
+      "modelled_initial": 39918523333.87201,
+      "modelled": 8423027651.644846,
+      "log_ratio_initial": 0.9708393502873232,
+      "log_ratio": 0.29513310922066627,
+      "weight": 1.0
+    }
+  ]
+}

@@ -83,6 +83,7 @@ nav:
       - Single-event loss: user-guide/single-event-loss.md
       - Stochastic event set: user-guide/stochastic-event-set.md
       - Financial metrics: user-guide/financial-metrics.md
+      - Calibration: user-guide/calibration.md
       - Plotting: user-guide/plotting.md
       - Configuration: user-guide/configuration.md
   - Methodology:
@@ -90,11 +91,13 @@ nav:
       - Vulnerability: methodology/vulnerability.md
       - Stochastic track generator: methodology/stochastic-track-generator.md
       - Exceedance probability: methodology/exceedance-probability.md
+      - Calibration: methodology/calibration.md
       - Limitations & validation: methodology/limitations.md
   - Examples:
       - Single-event loss: notebooks/01_single_event_loss.ipynb
       - Stochastic event set: notebooks/02_stochastic_event_set.ipynb
       - Portfolio risk metrics: notebooks/03_portfolio_risk_metrics.ipynb
+      - Calibration: notebooks/04_calibration.ipynb
   - API reference:
       - Data: api/data.md
       - Tracks: api/tracks.md
@@ -104,6 +107,7 @@ nav:
       - Loss: api/loss.md
       - Stochastic: api/stochastic.md
       - Financial: api/financial.md
+      - Calibration: api/calibration.md
       - Plotting: api/plotting.md
       - Utils: api/utils.md
   - Contributing: contributing.md

@@ -87,12 +87,15 @@ class LossCalculator:
 
         coordinates = portfolio[["latitude", "longitude"]].to_numpy(dtype=np.float64)
         intensity = self.hazard.compute_intensity(coordinates)
-        damage_ratio = self.vulnerability.damage_ratio(intensity, self._construction(portfolio))
+        tiv = portfolio["tiv"].to_numpy(dtype=np.float64)
+        damage_ratio = self.vulnerability.damage_ratio(
+            intensity, self._construction(portfolio), tiv=tiv
+        )
 
         out = portfolio.copy()
         out["intensity"] = intensity
         out["damage_ratio"] = damage_ratio
-        out["loss"] = damage_ratio * portfolio["tiv"].to_numpy(dtype=np.float64)
+        out["loss"] = damage_ratio * tiv
 
         self.results = out
         return out
@@ -141,7 +144,7 @@ class LossCalculator:
         frames = []
         for i, stamp in enumerate(stamps):
             intensity = history[i]
-            damage_ratio = self.vulnerability.damage_ratio(intensity, construction)
+            damage_ratio = self.vulnerability.damage_ratio(intensity, construction, tiv=tiv)
             frame = portfolio.copy()
             frame["time"] = stamp
             frame["intensity"] = intensity

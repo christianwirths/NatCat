@@ -16,13 +16,14 @@ Examples
 
 from __future__ import annotations
 
+from .calibration import Calibrator, build_cases, load_observed_losses
 from .exposure import load_litpop_exposure, synthetic_portfolio
 from .financial import EPCurve, ExceedanceProbability
 from .hazards import TropicalCycloneHazard
 from .loss import LossCalculator, LossSimulator, SimulationResults
 from .stochastic import SyntheticTCCatalog
 from .tracks import load_best_track
-from .vulnerability import WindVulnerability
+from .vulnerability import ValueDependentVulnerability, WindVulnerability
 
 __version__ = "0.1.0"
 
@@ -35,6 +36,10 @@ __all__ = [
     "SyntheticTCCatalog",
     "TropicalCycloneHazard",
     "WindVulnerability",
+    "ValueDependentVulnerability",
+    "Calibrator",
+    "build_cases",
+    "load_observed_losses",
     "__version__",
     "load_best_track",
     "load_litpop_exposure",

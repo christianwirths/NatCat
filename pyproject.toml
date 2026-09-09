@@ -37,6 +37,9 @@ docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-jupyter"]
 [tool.setuptools.packages.find]
 include = ["natcat*"]
 
+[tool.setuptools.package-data]
+natcat = ["calibration/data/*.csv"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

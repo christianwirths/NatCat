@@ -10,6 +10,21 @@ API, a documentation site, and a test suite.
 
 ### Added
 
+- `natcat.calibration`: `load_observed_losses`/`normalise_losses` for observed storm-loss tables
+  (the bundled NHC US-landfall CSV, CPI-normalised to an exposure reference year), `build_cases`/
+  `save_cases`/`load_cases` for precomputed, cacheable per-storm footprints (`StormCase`), and
+  `Calibrator`/`CalibrationResult` to fit a vulnerability model's parameters against them with
+  `scipy.optimize.differential_evolution` plus a local polish. See `scripts/calibrate.py`,
+  [Calibration](user-guide/calibration.md) and
+  [Calibration methodology](methodology/calibration.md).
+- `ValueDependentVulnerability`: a logistic wind vulnerability curve whose half-damage wind speed
+  varies with the log of exposure tile value, the model `natcat.calibration` is designed to fit.
+- `VulnerabilityModel.damage_ratio` gained a `tiv` keyword (ignored by `WindVulnerability`, used by
+  `ValueDependentVulnerability`); `WindVulnerability`/`ValueDependentVulnerability` gained
+  `params`/`with_params` to expose and update their calibratable scalars, the interface
+  `Calibrator` optimises over.
+- `plotting.plot_calibration` (modelled vs. observed loss, before/after) and
+  `plotting.plot_value_dependent_curves` (calibrated damage-ratio curves by tile value).
 - Installable package layout: `natcat/{data, tracks, hazards, vulnerability, exposure, loss,
   stochastic, financial, plotting, utils}`, each module with a docstring and explicit `__all__`.
 - Top-level re-exports from `natcat/__init__.py`: `TropicalCycloneHazard`, `WindVulnerability`,

@@ -151,8 +151,12 @@ class FigureCache:
                     logger.info("Loaded cached simulation results from %s", cache)
                     self._simulation_results = cached
                     return cached
-                logger.info("Cache at %s has %d years, expected %d; re-running.",
-                            cache, cached.n_years, self.args.years)
+                logger.info(
+                    "Cache at %s has %d years, expected %d; re-running.",
+                    cache,
+                    cached.n_years,
+                    self.args.years,
+                )
 
             simulator = LossSimulator(
                 self.catalog_model,
