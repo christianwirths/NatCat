@@ -108,3 +108,4 @@ nav:
       - Utils: api/utils.md
   - Contributing: contributing.md
   - Changelog: changelog.md
+  - Migration from src/: migration.md
