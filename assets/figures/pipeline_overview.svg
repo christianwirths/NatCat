@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B7280"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="440" fill="none"/>
+
+  <!-- Row labels -->
+  <text x="20" y="24" font-size="11" fill="#6B7280" letter-spacing="0.3">DETERMINISTIC SINGLE-EVENT PIPELINE</text>
+  <text x="20" y="192" font-size="11" fill="#6B7280" letter-spacing="0.3">STOCHASTIC EVENT GENERATION</text>
+  <text x="990" y="192" font-size="11" fill="#6B7280" letter-spacing="0.3">EXPOSURE</text>
+  <text x="920" y="332" font-size="11" fill="#6B7280" letter-spacing="0.3">FINANCIAL OUTPUT</text>
+
+  <!-- Row 1: main chain -->
+  <g stroke="#1F2933" stroke-width="1.5">
+    <rect x="20" y="40" width="155" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="205" y="40" width="195" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="430" y="40" width="170" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="630" y="40" width="170" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="830" y="40" width="195" height="60" rx="8" fill="#E8F1F8"/>
+  </g>
+
+  <g font-size="13" fill="#1F2933" text-anchor="middle">
+    <text x="97" y="66">ATCF best track /</text>
+    <text x="97" y="82">forecast (NHC)</text>
+
+    <text x="302" y="62">Track processing</text>
+    <text x="302" y="78">(interpolation, RMW,</text>
+    <text x="302" y="94">motion)</text>
+
+    <text x="515" y="66">Hazard: parametric</text>
+    <text x="515" y="82">wind field</text>
+
+    <text x="715" y="66">Vulnerability:</text>
+    <text x="715" y="82">damage ratio</text>
+
+    <text x="927" y="66">Loss</text>
+    <text x="927" y="82">(per location / portfolio)</text>
+  </g>
+
+  <!-- Row 1 arrows -->
+  <g stroke="#2563EB" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)">
+    <line x1="177" y1="70" x2="203" y2="70"/>
+    <line x1="402" y1="70" x2="428" y2="70"/>
+    <line x1="602" y1="70" x2="628" y2="70"/>
+    <line x1="802" y1="70" x2="828" y2="70"/>
+  </g>
+
+  <!-- Row 2: stochastic + exposure -->
+  <g stroke="#1F2933" stroke-width="1.5">
+    <rect x="20" y="200" width="170" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="225" y="200" width="260" height="60" rx="8" fill="#F3F4F6"/>
+    <rect x="990" y="200" width="190" height="60" rx="8" fill="#F3F4F6"/>
+  </g>
+
+  <g font-size="13" fill="#1F2933" text-anchor="middle">
+    <text x="105" y="226">Historical tracks</text>
+    <text x="105" y="242">1900&#8211;2020</text>
+
+    <text x="355" y="222">Stochastic event set</text>
+    <text x="355" y="238">(KDE genesis +</text>
+    <text x="355" y="254">Markov walk)</text>
+
+    <text x="1085" y="226">Exposure</text>
+    <text x="1085" y="242">(LitPop / synthetic)</text>
+  </g>
+
+  <!-- Row 2 arrows -->
+  <g stroke="#6B7280" stroke-width="1.5" fill="none">
+    <line x1="192" y1="230" x2="223" y2="230" marker-end="url(#arrow-gray)"/>
+    <!-- stochastic event set feeds the hazard model -->
+    <polyline points="355,200 355,150 515,150 515,102" marker-end="url(#arrow-gray)"/>
+    <!-- exposure feeds the loss engine -->
+    <polyline points="1085,200 1085,150 955,150 955,102" marker-end="url(#arrow-gray)"/>
+  </g>
+
+  <!-- Row 3: financial output -->
+  <g stroke="#1F2933" stroke-width="1.5">
+    <rect x="850" y="340" width="310" height="60" rx="8" fill="#E8F1F8"/>
+  </g>
+
+  <g font-size="13" fill="#1F2933" text-anchor="middle">
+    <text x="1005" y="366">Financial:</text>
+    <text x="1005" y="382">AEP / OEP, return periods, AAL</text>
+  </g>
+
+  <!-- Loss feeds financial metrics -->
+  <g stroke="#F59E0B" stroke-width="1.5" fill="none" marker-end="url(#arrow-orange)">
+    <line x1="900" y1="100" x2="900" y2="338"/>
+  </g>
+
+  <text x="20" y="425" font-size="10" fill="#9CA3AF">NatCat modelling chain &#8212; tropical cyclone hazard, vulnerability, exposure and financial loss metrics</text>
+</svg>
