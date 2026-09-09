@@ -12,6 +12,7 @@ from natcat.tracks import (
     fill_missing_rmw,
     interpolate_track,
     prepare_track,
+    truncate_after_hurricane,
 )
 
 PROCESSED_COLUMNS = {
@@ -217,7 +218,7 @@ def test_prepare_track_dedupes_before_interpolating(tiny_track):
 
 def test_prepare_track_on_michael(michael_track):
     assert PROCESSED_COLUMNS.issubset(michael_track.columns)
-    assert len(michael_track) == 217
+    assert len(michael_track) == 103  # 6 Oct 18Z to the last HU fix, 11 Oct 00Z, hourly
     assert michael_track["radius_max_wind_nm"].gt(0).all()
     assert michael_track["translation_speed_kt"].between(0, 60).all()
 
@@ -226,8 +227,11 @@ def test_load_best_track_offline(michael_path):
     from natcat.tracks import load_best_track
 
     track = load_best_track(2018, "al", "14", download=False)
-    assert len(track) == 2593  # 216 h on the default 5-minute grid
-    assert len(load_best_track(2018, "al", "14", freq="1h", download=False)) == 217
+    assert len(track) == 1225  # 102 h on the default 5-minute grid
+    assert track["time"].max() == pd.Timestamp("2018-10-11 00:00")  # last HU fix
+    assert len(load_best_track(2018, "al", "14", freq="1h", download=False)) == 103
+    full = load_best_track(2018, "al", "14", truncate_after_hurricane=False, download=False)
+    assert len(full) == 2593 and full["storm_type"].iloc[-1] == "EX"
     assert track["storm_id"].iloc[0] == "AL142018"
 
 
@@ -243,3 +247,41 @@ def test_prepare_track_default_step_is_five_minutes(tiny_track):
     steps = out["time"].diff().dropna().unique()
     assert len(steps) == 1
     assert pd.Timedelta(steps[0]) == pd.Timedelta("5min")
+
+
+# -- truncate_after_hurricane ----------------------------------------------
+def test_truncate_uses_storm_type_and_keeps_reintensification():
+    df = pd.DataFrame(
+        {
+            "max_wind_speed_kt": [30.0, 70.0, 50.0, 75.0, 45.0, 35.0],
+            "storm_type": ["TS", "HU", "TS", "HU", "TS", "EX"],
+        }
+    )
+    out = truncate_after_hurricane(df)
+    assert out["storm_type"].tolist() == ["TS", "HU", "TS", "HU"]
+
+
+def test_truncate_falls_back_to_wind_speed():
+    df = pd.DataFrame({"max_wind_speed_kt": [40.0, 64.0, 90.0, 63.9, 20.0]})
+    assert truncate_after_hurricane(df)["max_wind_speed_kt"].tolist() == [40.0, 64.0, 90.0]
+
+
+def test_truncate_keeps_storms_that_never_reach_hurricane_strength():
+    df = pd.DataFrame({"max_wind_speed_kt": [30.0, 45.0, 60.0], "storm_type": ["TD", "TS", "TS"]})
+    out = truncate_after_hurricane(df)
+    pd.testing.assert_frame_equal(out, df)
+    assert out is not df
+
+
+def test_truncate_requires_a_classification_column():
+    with pytest.raises(KeyError):
+        truncate_after_hurricane(pd.DataFrame({"latitude": [1.0]}))
+
+
+def test_prepare_track_can_skip_truncation(tiny_track):
+    weakening = tiny_track.copy()
+    weakening["storm_type"] = ["TS", "HU", "HU", "TS"]
+    cut = prepare_track(weakening, freq="1h")
+    full = prepare_track(weakening, freq="1h", truncate_after_hurricane=False)
+    assert cut["time"].max() == pd.Timestamp("2020-01-01 12:00")
+    assert full["time"].max() == pd.Timestamp("2020-01-01 18:00")

@@ -15,6 +15,7 @@ from ..tracks.processing import (
     add_heading,
     add_translation_velocity,
     interpolate_track,
+    truncate_after_hurricane,
 )
 from ..vulnerability.base import VulnerabilityModel
 from .calculator import LossCalculator
@@ -104,6 +105,11 @@ class LossSimulator:
         losses low: on the Florida LitPop portfolio a 1-hour step gives about
         25 % less AAL than 5 minutes (and a thinner tail) for roughly one
         eighth of the run time. Use ``'1h'`` for quick exploration only.
+    truncate_after_hurricane : bool, default True
+        Cut each synthetic track after its last fix at or above hurricane
+        strength (``max_wind_speed_kt >= 64``) before evaluating the wind
+        field, mirroring :func:`natcat.tracks.prepare_track`. Storms that
+        never reach hurricane strength are kept in full.
     seed : int, optional
         If given, re-seeds the catalog's generator so the run is reproducible.
 
@@ -127,6 +133,7 @@ class LossSimulator:
         *,
         buffer_deg: float = 5.0,
         freq: str = DEFAULT_TRACK_FREQ,
+        truncate_after_hurricane: bool = True,
         seed: int | None = None,
     ) -> None:
         self.catalog = catalog
@@ -134,6 +141,7 @@ class LossSimulator:
         self.vulnerability = vulnerability
         self.buffer_deg = float(buffer_deg)
         self.freq = freq
+        self.truncate_after_hurricane = truncate_after_hurricane
         if seed is not None:
             self.catalog.rng = np.random.default_rng(seed)
 
@@ -154,8 +162,9 @@ class LossSimulator:
         )
 
     def _process(self, track: pd.DataFrame) -> pd.DataFrame:
-        """Interpolate a synthetic track and recompute its kinematics."""
-        out = interpolate_track(track, freq=self.freq)
+        """Truncate, interpolate a synthetic track and recompute its kinematics."""
+        out = truncate_after_hurricane(track) if self.truncate_after_hurricane else track
+        out = interpolate_track(out, freq=self.freq)
         out = add_translation_velocity(out)
         return add_heading(out)
 

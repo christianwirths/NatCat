@@ -23,6 +23,12 @@ not been calibrated or validated against observed claims data.
   sampling error small for any realistic storm, but a coarser `freq` (as used for quick runs)
   under-samples compact, fast-moving storms and biases losses low &#8212; by about a quarter of the
   AAL at 1 hour (see [Wind field](wind-field.md#temporal-sampling)).
+- **Post-hurricane decay is cut off.** Tracks are truncated after the last hurricane-strength fix
+  (`truncate_after_hurricane`), because the Rankine profile cannot represent the broad, weak
+  circulation of a decaying storm (radius of maximum wind of 100 nm and more) and would spread
+  trace damage far from the track. The price is that inland tropical-storm-force wind damage
+  after the downgrade is not modelled, while storms that never reach hurricane strength are
+  modelled in full &#8212; a deliberate asymmetry.
 - **No gust factors.** All wind speeds are 1-minute sustained wind; no conversion to 3-second gust
   is applied, which some vulnerability curves in the literature expect as their input basis.
 

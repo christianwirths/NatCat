@@ -65,6 +65,7 @@ def test_compute_intensity_history_shape_and_monotonicity(tiny_processed, random
 def test_compute_intensity_history_ends_at_footprint(michael_track, random_coords):
     hazard = TropicalCycloneHazard(michael_track)
     times = pd.date_range(michael_track["time"].min(), michael_track["time"].max(), freq="12h")
+    times = times.union([michael_track["time"].max()])  # make sure the last fix is included
     history = hazard.compute_intensity_history(random_coords, times.to_numpy())
     assert np.allclose(history[-1], hazard.compute_intensity(random_coords))
 

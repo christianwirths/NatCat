@@ -101,6 +101,7 @@ def test_compute_history_is_monotone(calculator, portfolio, michael_track):
 
 def test_compute_history_final_total_matches_compute(calculator, portfolio, michael_track):
     times = pd.date_range(michael_track["time"].min(), michael_track["time"].max(), freq="12h")
+    times = times.union([michael_track["time"].max()])  # make sure the last fix is included
     history = calculator.compute_history(portfolio, times)
     final = history[history["time"] == history["time"].max()]["loss"].sum()
     assert final == pytest.approx(calculator.compute(portfolio)["loss"].sum())

@@ -24,6 +24,11 @@ API, a documentation site, and a test suite.
 
 ### Changed
 
+- **Tracks are truncated after the last hurricane-strength fix** (`truncate_after_hurricane`,
+  default on in `prepare_track`, `load_best_track` and `LossSimulator`). The decaying
+  post-landfall phase carries observed radii of maximum wind of 100 nm and more, which the
+  Rankine vortex turned into trace damage far from the track (for Michael: coastal Georgia from a
+  45 kt tropical storm over South Carolina).
 - **Track interpolation defaults to 5 minutes** (`DEFAULT_TRACK_FREQ`), restoring the pre-refactor
   behaviour of the single-event pipeline. The hazard footprint is a maximum over discrete track
   positions, so the 1-hour default introduced during the refactor under-sampled compact,

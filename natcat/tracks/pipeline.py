@@ -23,6 +23,7 @@ def load_best_track(
     *,
     freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
+    truncate_after_hurricane: bool = True,
     data_dir: str | Path | None = None,
     download: bool = True,
 ) -> pd.DataFrame:
@@ -44,6 +45,9 @@ def load_best_track(
         for why a coarse step is a bad idea).
     method : {'linear', 'cubic'}, default 'linear'
         Interpolation kind.
+    truncate_after_hurricane : bool, default True
+        Cut the track after its last hurricane-strength fix (see
+        :func:`natcat.tracks.truncate_after_hurricane`).
     data_dir : str or pathlib.Path, optional
         Root data directory. Defaults to :func:`natcat.config.get_data_dir`.
     download : bool, default True
@@ -83,6 +87,8 @@ def load_best_track(
         path = download_best_track(year, basin, storm_number, data_dir=root)
 
     raw = read_best_track(path)
-    track = prepare_track(raw, freq=freq, method=method)
+    track = prepare_track(
+        raw, freq=freq, method=method, truncate_after_hurricane=truncate_after_hurricane
+    )
     track["storm_id"] = f"{basin.upper()}{storm_number}{year}"
     return track

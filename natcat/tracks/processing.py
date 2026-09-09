@@ -67,6 +67,9 @@ _EX_RMW_FACTOR: float = 1.5
 #: the radius of maximum wind for any realistic storm.
 DEFAULT_TRACK_FREQ: str = "5min"
 
+#: Sustained wind at which a tropical cyclone is classified as a hurricane.
+HURRICANE_WIND_KT: float = 64.0
+
 
 def interpolate_track(
     df: pd.DataFrame,
@@ -297,16 +300,69 @@ def fill_missing_rmw(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def truncate_after_hurricane(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop every fix after the storm's last hurricane-strength fix.
+
+    Once a landfalling storm has decayed below hurricane strength, best tracks
+    describe a broad, weak circulation (radius of maximum wind of 100 nm and
+    more) that a Rankine vortex cannot represent: it spreads near-threshold
+    winds, and therefore trace damage, over a wide area far from the track.
+    This filter stops the track at the last fix classified as a hurricane so
+    that only the tropical-cyclone phase enters the hazard model. Fixes
+    *before* the storm reaches hurricane strength are kept, as are weaker
+    fixes between two hurricane phases (re-intensification).
+
+    Classification uses the ATCF ``storm_type`` column (``'HU'``) when present
+    and otherwise falls back to ``max_wind_speed_kt >= HURRICANE_WIND_KT``,
+    which is what synthetic tracks rely on.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Track sorted by time with ``max_wind_speed_kt`` and optionally
+        ``storm_type``. Never mutated.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The truncated track (a copy). Tracks that never reach hurricane
+        strength are returned unchanged.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"max_wind_speed_kt": [50.0, 70.0, 80.0, 45.0, 30.0]})
+    >>> truncate_after_hurricane(df)["max_wind_speed_kt"].tolist()
+    [50.0, 70.0, 80.0]
+    """
+    if "storm_type" in df.columns and df["storm_type"].notna().any():
+        is_hurricane = df["storm_type"].astype(str).str.strip().str.upper() == "HU"
+    elif "max_wind_speed_kt" in df.columns:
+        is_hurricane = df["max_wind_speed_kt"] >= HURRICANE_WIND_KT
+    else:
+        raise KeyError("truncate_after_hurricane requires 'storm_type' or 'max_wind_speed_kt'")
+
+    if not is_hurricane.any():
+        return df.copy()
+    last = int(np.flatnonzero(is_hurricane.to_numpy())[-1])
+    return df.iloc[: last + 1].copy()
+
+
+_truncate_after_hurricane = truncate_after_hurricane
+
+
 def prepare_track(
     df: pd.DataFrame,
     *,
     freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
+    truncate_after_hurricane: bool = True,
 ) -> pd.DataFrame:
     """Turn a raw best track into a processed track.
 
-    Pipeline: de-duplicate timestamps, fill missing RMW, interpolate onto a
-    regular grid, then derive translation speed and heading.
+    Pipeline: de-duplicate timestamps, optionally cut the track after its last
+    hurricane-strength fix, fill missing RMW, interpolate onto a regular grid,
+    then derive translation speed and heading.
 
     Parameters
     ----------
@@ -320,6 +376,10 @@ def prepare_track(
         :data:`DEFAULT_TRACK_FREQ`).
     method : {'linear', 'cubic'}, default 'linear'
         Interpolation kind.
+    truncate_after_hurricane : bool, default True
+        Drop every fix after the last hurricane-strength fix (see
+        :func:`truncate_after_hurricane`), so the decaying post-landfall phase
+        with its very large radius of maximum wind does not enter the hazard.
 
     Returns
     -------
@@ -338,6 +398,8 @@ def prepare_track(
     out = out.sort_values("time", kind="stable").drop_duplicates(subset=["time"], keep="first")
     out = out.reset_index(drop=True)
 
+    if truncate_after_hurricane:
+        out = _truncate_after_hurricane(out)
     out = fill_missing_rmw(out)
     out = interpolate_track(out, freq=freq, method=method)
     out = add_translation_velocity(out)

@@ -17,7 +17,7 @@ expects.
 | `max_wind_speed_kt` | `float` | kt | 1-minute sustained wind |
 | `radius_max_wind_nm` | `float` | nm | Filled by `fill_missing_rmw` if missing |
 | `min_pressure_mb` | `float`, optional | hPa | |
-| `storm_type` | `str`, optional | ATCF `TY` code | e.g. `HU`, `TS`, `EX` |
+| `storm_type` | `str`, optional | ATCF `TY` code | e.g. `HU`, `TS`, `EX`; `HU` drives `truncate_after_hurricane` |
 | `translation_speed_kt` | `float` | kt | Storm motion speed; added by `add_translation_velocity` |
 | `heading_deg` | `float` | deg, 0=N clockwise | Storm motion direction; added by `add_heading` |
 | `storm_id` | `str`, optional | | Present on stochastic-catalog and multi-storm tracks |

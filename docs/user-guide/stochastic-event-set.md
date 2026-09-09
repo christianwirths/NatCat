@@ -95,6 +95,10 @@ LitPop portfolio, 50 simulated years with the same seed give:
 
 Use `freq="1h"` for quick exploration and the default for any number you intend to quote.
 
+`truncate_after_hurricane` (default `True`) cuts each synthetic track after its last fix at or
+above 64 kt before the wind field is evaluated, the same rule `prepare_track` applies to best
+tracks. Synthetic storms that never reach hurricane strength are evaluated in full.
+
 ## `SimulationResults`
 
 | Attribute | Type | Description |
@@ -126,7 +130,7 @@ curves, return periods and AAL.
 | `catalog.fit(data_dir)` | `self` |
 | `catalog.generate(n_storms=None, n_years=None)` | catalog DataFrame |
 | `catalog.save(path)` / `SyntheticTCCatalog.load(path)` | pickle round-trip |
-| `LossSimulator(catalog, portfolio, vulnerability, *, buffer_deg=5.0, freq="5min", seed=None)` | simulator instance |
+| `LossSimulator(catalog, portfolio, vulnerability, *, buffer_deg=5.0, freq="5min", truncate_after_hurricane=True, seed=None)` | simulator instance |
 | `simulator.run(n_years, *, progress=True)` | `SimulationResults` |
 
 See the full [API reference](../api/stochastic.md) for parameter and type details.
