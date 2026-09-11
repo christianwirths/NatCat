@@ -15,7 +15,9 @@ catalog = SyntheticTCCatalog(
     max_hours=720,
     n_neighbors=5,
     min_wind_kt=15.0,
-    land_decay=0.92,
+    land_decay=None,
+    land_remnant_hours=24.0,
+    remnant_wind_kt=34.0,
     land_rmw_growth=1.02,
     max_wind_kt=185.0,
     max_rmw_nm=150.0,
@@ -31,6 +33,12 @@ catalog.fit("data/raw")   # loads every b<basin>*.dat via read_best_track + prep
 - `catalog.transitions` &#8212; a `TransitionModel`: the empirical Markov transition table, keyed by
   2&deg;&times;2&deg; grid cell.
 - `catalog.frequency` &#8212; a `PoissonFrequency`: storms/year calibrated to the historical mean.
+- `catalog.land_decay` &#8212; a `LandDecayModel`: inland wind decay, fitted by least squares to
+  the historical landfalls (`land_decay=None`, the default) unless a model or legacy factor was
+  given explicitly. Override it with `land_decay=LandDecayModel(rate_per_h=0.095, floor_kt=26.7)`
+  for a literature value (e.g. Kaplan & DeMaria 1995), or `land_decay=0.92` for the pre-fit legacy
+  rule (multiplicative, no background wind). See
+  [Inland decay](../methodology/stochastic-track-generator.md#inland-decay).
 
 ![Historical genesis points and the fitted KDE](../assets/figures/genesis_points.png){ width="100%" }
 *Figure: historical Atlantic genesis locations (1900&#8211;2020) used to fit the genesis KDE.*
@@ -126,7 +134,7 @@ curves, return periods and AAL.
 
 | Signature | Returns |
 |-----------|---------|
-| `SyntheticTCCatalog(*, basin="al", grid_size=2.0, time_step_h=3.0, max_hours=720, n_neighbors=5, min_wind_kt=15.0, land_decay=0.92, land_rmw_growth=1.02, max_wind_kt=185.0, max_rmw_nm=150.0, seed=None)` | catalog instance |
+| `SyntheticTCCatalog(*, basin="al", grid_size=2.0, time_step_h=3.0, max_hours=720, n_neighbors=5, min_wind_kt=15.0, land_decay=None, land_remnant_hours=24.0, remnant_wind_kt=34.0, land_rmw_growth=1.02, max_wind_kt=185.0, max_rmw_nm=150.0, seed=None)` | catalog instance |
 | `catalog.fit(data_dir)` | `self` |
 | `catalog.generate(n_storms=None, n_years=None)` | catalog DataFrame |
 | `catalog.save(path)` / `SyntheticTCCatalog.load(path)` | pickle round-trip |

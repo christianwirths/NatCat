@@ -114,11 +114,11 @@ Reference run on the Florida / Gulf-coast LitPop portfolio above (12,201 locatio
 
 | Metric | Value |
 |---|---|
-| Average annual loss (AAL) | $8.9 B |
-| 1-in-10 AEP loss | $13 B |
-| 1-in-50 AEP loss | $70 B |
-| 1-in-100 AEP loss | $130 B |
-| 1-in-250 AEP loss | $280 B |
+| Average annual loss (AAL) | $11.7 B |
+| 1-in-10 AEP loss | $23 B |
+| 1-in-50 AEP loss | $100 B |
+| 1-in-100 AEP loss | $154 B |
+| 1-in-250 AEP loss | $262 B |
 
 These are ground-up losses from an uncalibrated research model. See the documentation's
 [limitations page](docs/methodology/limitations.md) before reading anything into the numbers.

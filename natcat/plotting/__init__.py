@@ -29,6 +29,7 @@ from natcat.plotting.calibration import (
 from natcat.plotting.curves import (
     plot_annual_loss_distribution,
     plot_ep_curve,
+    plot_land_decay,
     plot_rmw_heuristic,
     plot_vulnerability,
     plot_wind_profile,
@@ -72,6 +73,7 @@ __all__ = [
     "plot_ep_curve",
     "plot_footprint",
     "plot_genesis",
+    "plot_land_decay",
     "plot_rmw_heuristic",
     "plot_track",
     "plot_vulnerability",

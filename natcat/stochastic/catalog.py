@@ -25,6 +25,7 @@ import pandas as pd
 from ..data.atcf import read_best_track
 from ..data.quality import validate_track
 from ..tracks.processing import prepare_track
+from .decay import LandDecayModel
 from .frequency import PoissonFrequency
 from .genesis import GenesisModel, extract_genesis_points
 from .transitions import TransitionModel, step_track
@@ -68,8 +69,18 @@ class SyntheticTCCatalog:
         Nearest historical genesis points used for the initial intensity.
     min_wind_kt : float, default 15.0
         Wind speed below which a storm is considered dissipated.
-    land_decay : float, default 0.92
-        Per-hour multiplicative wind decay over land.
+    land_decay : float or LandDecayModel, optional
+        Inland decay rule. ``None`` (default) fits a :class:`LandDecayModel`
+        (decay rate and background wind) to the historical landfalls during
+        :meth:`fit`; a model instance is used as given; a float such as
+        ``0.92`` restores the legacy per-hour multiplicative decay with no
+        background wind.
+    land_remnant_hours : float, default 24.0
+        A storm over land that has stayed below ``remnant_wind_kt`` for this
+        long is terminated. Best tracks carry inland remnants for days; they
+        cause no modelled damage and would otherwise run to ``max_hours``.
+    remnant_wind_kt : float, default 34.0
+        Wind below which an over-land storm counts as a remnant.
     land_rmw_growth : float, default 1.02
         Per-hour multiplicative radius growth over land.
     max_wind_kt : float, default 185.0
@@ -84,6 +95,8 @@ class SyntheticTCCatalog:
     genesis : GenesisModel
     transitions : TransitionModel
     frequency : PoissonFrequency
+    land_decay : LandDecayModel
+        Inland decay, fitted in :meth:`fit` unless given.
     tracks : list of pandas.DataFrame
         The historical tracks the model was fitted on.
     rng : numpy.random.Generator
@@ -104,7 +117,9 @@ class SyntheticTCCatalog:
         max_hours: int = 720,
         n_neighbors: int = 5,
         min_wind_kt: float = 15.0,
-        land_decay: float = 0.92,
+        land_decay: float | LandDecayModel | None = None,
+        land_remnant_hours: float = 24.0,
+        remnant_wind_kt: float = 34.0,
         land_rmw_growth: float = 1.02,
         max_wind_kt: float = 185.0,
         max_rmw_nm: float = 150.0,
@@ -116,7 +131,16 @@ class SyntheticTCCatalog:
         self.max_hours = int(max_hours)
         self.n_neighbors = int(n_neighbors)
         self.min_wind_kt = float(min_wind_kt)
-        self.land_decay = float(land_decay)
+        self.land_decay: LandDecayModel | None = (
+            None
+            if land_decay is None
+            else land_decay
+            if isinstance(land_decay, LandDecayModel)
+            else LandDecayModel.from_rate(float(land_decay))
+        )
+        self._fit_land_decay = land_decay is None
+        self.land_remnant_hours = float(land_remnant_hours)
+        self.remnant_wind_kt = float(remnant_wind_kt)
         self.land_rmw_growth = float(land_rmw_growth)
         self.max_wind_kt = float(max_wind_kt)
         self.max_rmw_nm = float(max_rmw_nm)
@@ -236,6 +260,8 @@ class SyntheticTCCatalog:
             If too few tracks survive quality control to fit the genesis KDE.
         """
         self.tracks = self.load_tracks(data_dir, progress=progress, max_files=max_files)
+        if self._fit_land_decay:
+            self.land_decay = LandDecayModel.fit(self.tracks)
         genesis_points = extract_genesis_points(self.tracks)
 
         self.genesis.fit(genesis_points)
@@ -275,6 +301,7 @@ class SyntheticTCCatalog:
         state["hour"] = 0.0
 
         states: list[dict[str, float]] = []
+        remnant_hours = 0.0
         for step in range(1, n_steps + 1):
             outcome = step_track(
                 state,
@@ -296,10 +323,17 @@ class SyntheticTCCatalog:
             if state["max_wind_speed_kt"] < self.min_wind_kt:
                 states.append(state)
                 break
+            if state.get("_over_land") and state["max_wind_speed_kt"] < self.remnant_wind_kt:
+                remnant_hours += self.time_step_h
+                if remnant_hours >= self.land_remnant_hours:
+                    states.append(state)
+                    break
+            else:
+                remnant_hours = 0.0
         else:
             states.append(state)
 
-        track = pd.DataFrame(states)
+        track = pd.DataFrame(states).drop(columns=["_over_land"], errors="ignore")
         track["time"] = REFERENCE_TIME + pd.to_timedelta(track["hour"], unit="h")
         return track
 

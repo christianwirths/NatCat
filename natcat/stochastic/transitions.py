@@ -17,6 +17,7 @@ import pandas as pd
 
 from ..utils.geo import destination_point
 from ..utils.units import kt2kmh
+from .decay import LandDecayModel
 from .genesis import is_land
 
 __all__ = ["TRANSITION_COLUMNS", "build_state_table", "TransitionModel", "step_track"]
@@ -190,7 +191,7 @@ def step_track(
     rng: np.random.Generator,
     *,
     time_step_h: float = 3.0,
-    land_decay: float = 0.92,
+    land_decay: float | LandDecayModel | None = None,
     land_rmw_growth: float = 1.02,
     min_rmw_nm: float = 5.0,
     max_wind_kt: float = 185.0,
@@ -198,9 +199,12 @@ def step_track(
 ) -> tuple[dict[str, float], dict[str, float]] | None:
     """Advance a synthetic storm by one time step.
 
-    Over water the intensity and radius follow the sampled historical deltas;
-    over land the wind decays as ``land_decay ** dt`` and the radius grows as
-    ``land_rmw_growth ** dt``.
+    Over water the intensity and radius follow the sampled historical deltas.
+    Over land the wind follows the :class:`LandDecayModel` (decay towards a
+    background wind) and the radius grows as ``land_rmw_growth ** dt``. A step
+    that crosses the coast is split: the land rule acts for the fraction of
+    the step spent over land (half, when only one end point is on land) and
+    the sampled delta is scaled by the remainder.
 
     Parameters
     ----------
@@ -213,8 +217,10 @@ def step_track(
         Random generator; the only source of randomness used.
     time_step_h : float, default 3.0
         Length of the step, in hours.
-    land_decay : float, default 0.92
-        Per-hour multiplicative wind decay over land.
+    land_decay : float or LandDecayModel, optional
+        Inland decay. A :class:`LandDecayModel` (default: its fitted Atlantic
+        parameters) or, for the legacy behaviour, a per-hour multiplicative
+        factor such as ``0.92`` (no background wind).
     land_rmw_growth : float, default 1.02
         Per-hour multiplicative radius growth over land.
     min_rmw_nm : float, default 5.0
@@ -252,9 +258,27 @@ def step_track(
     next_lat = float(next_lat)
     next_lon = float(next_lon)
 
-    if bool(is_land(np.array([next_lat]), np.array([next_lon]))[0]):
-        next_vmax = state["max_wind_speed_kt"] * (land_decay**time_step_h)
-        next_rmw = state["radius_max_wind_nm"] * (land_rmw_growth**time_step_h)
+    decay = (
+        LandDecayModel()
+        if land_decay is None
+        else land_decay
+        if isinstance(land_decay, LandDecayModel)
+        else LandDecayModel.from_rate(float(land_decay))
+    )
+    land_now = bool(
+        state.get(
+            "_over_land", is_land(np.array([state["latitude"]]), np.array([state["longitude"]]))[0]
+        )
+    )
+    land_next = bool(is_land(np.array([next_lat]), np.array([next_lon]))[0])
+    land_fraction = (float(land_now) + float(land_next)) / 2.0
+
+    if land_fraction > 0.0:
+        land_hours = land_fraction * time_step_h
+        next_vmax = float(decay.step(state["max_wind_speed_kt"], land_hours))
+        next_vmax += (1.0 - land_fraction) * delta_vmax
+        next_rmw = state["radius_max_wind_nm"] * (land_rmw_growth**land_hours)
+        next_rmw += (1.0 - land_fraction) * delta_rmw
     else:
         next_vmax = state["max_wind_speed_kt"] + delta_vmax
         next_rmw = state["radius_max_wind_nm"] + delta_rmw
@@ -264,4 +288,5 @@ def step_track(
     following["longitude"] = next_lon
     following["max_wind_speed_kt"] = float(np.clip(next_vmax, 0.0, max_wind_kt))
     following["radius_max_wind_nm"] = float(np.clip(next_rmw, min_rmw_nm, max_rmw_nm))
+    following["_over_land"] = float(land_next)
     return current, following

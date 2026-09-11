@@ -230,3 +230,102 @@ def test_generated_intensity_and_radius_respect_caps(raw_data_dir):
     assert stepped["max_wind_speed_kt"].max() <= 120.0
     assert stepped["radius_max_wind_nm"].max() <= 60.0
     assert stepped["radius_max_wind_nm"].min() >= 5.0
+
+
+# -- inland decay ------------------------------------------------------------------
+def test_land_decay_model_step_floor_and_legacy():
+    from natcat.stochastic import LandDecayModel
+
+    model = LandDecayModel(rate_per_h=0.07, floor_kt=25.0)
+    assert float(model.step(100.0, 0.0)) == 100.0
+    assert float(model.step(100.0, 1e6)) == pytest.approx(25.0)
+    assert float(model.step(20.0, 6.0)) == 20.0  # never intensifies over land
+    assert model.hours_to(100.0, 64.0) == pytest.approx(np.log(75.0 / 39.0) / 0.07)
+    legacy = LandDecayModel.from_rate(0.92)
+    assert legacy.floor_kt == 0.0
+    assert float(legacy.step(100.0, 3.0)) == pytest.approx(100.0 * 0.92**3)
+    with pytest.raises(ValueError):
+        LandDecayModel(rate_per_h=0.0)
+    with pytest.raises(ValueError):
+        LandDecayModel.from_rate(1.5)
+
+
+def test_land_decay_fit_recovers_parameters():
+    from natcat.stochastic import LandDecayModel, extract_landfall_segments
+
+    truth = LandDecayModel(rate_per_h=0.08, floor_kt=22.0)
+    rng = np.random.default_rng(0)
+    tracks = []
+    for k in range(25):
+        wind_0 = 60.0 + 3.0 * k
+        hours = np.arange(0.0, 60.0, 3.0)
+        # start over the Gulf, move north-east onto Florida; land from index 4 on
+        lat = 27.0 + 0.4 * np.arange(len(hours))
+        lon = -85.5 + 0.35 * np.arange(len(hours))
+        wind = np.where(np.arange(len(hours)) < 4, wind_0, truth.step(wind_0, hours - hours[3]))
+        wind = wind + rng.normal(0.0, 2.0, len(hours))
+        tracks.append(
+            pd.DataFrame(
+                {
+                    "time": pd.Timestamp("2000-01-01") + pd.to_timedelta(hours, unit="h"),
+                    "latitude": lat,
+                    "longitude": lon,
+                    "max_wind_speed_kt": wind,
+                }
+            )
+        )
+    segments = extract_landfall_segments(tracks)
+    assert segments["storm"].nunique() == 25
+    assert (segments["hours"] > 0).all()
+    fitted = LandDecayModel.fit(tracks)
+    assert fitted.rate_per_h == pytest.approx(0.08, abs=0.015)
+    assert fitted.floor_kt == pytest.approx(22.0, abs=4.0)
+    assert fitted.n_points == len(segments[segments["hours"] <= 48.0])
+    with pytest.raises(ValueError, match="at least 20"):
+        LandDecayModel.fit(tracks[:1])
+
+
+def test_step_track_applies_land_decay_over_land():
+    from natcat.stochastic import LandDecayModel, TransitionModel, build_state_table, step_track
+
+    # a slow north-westward track over central Florida, constant intensity
+    florida = pd.DataFrame(
+        {
+            "time": pd.date_range("2000-01-01", periods=5, freq="3h"),
+            "latitude": [28.0, 28.1, 28.2, 28.3, 28.4],
+            "longitude": [-81.4, -81.5, -81.6, -81.7, -81.8],
+            "max_wind_speed_kt": [100.0] * 5,
+            "radius_max_wind_nm": [20.0] * 5,
+            "translation_speed_kt": [4.0] * 5,
+            "heading_deg": [320.0] * 5,
+        }
+    )
+    model = TransitionModel(grid_size=2.0).fit(build_state_table([florida]))
+    decay = LandDecayModel(rate_per_h=0.1, floor_kt=0.0)
+    rng = np.random.default_rng(0)
+    state = {
+        "latitude": 28.2,
+        "longitude": -81.6,
+        "max_wind_speed_kt": 100.0,
+        "radius_max_wind_nm": 20.0,
+        "_over_land": 1.0,
+    }
+    _, after = step_track(state, model, rng, time_step_h=3.0, land_decay=decay)
+    assert after["_over_land"] == 1.0  # a 4 kt step keeps it inland
+    assert after["max_wind_speed_kt"] == pytest.approx(100.0 * np.exp(-0.3))
+    assert after["radius_max_wind_nm"] == pytest.approx(20.0 * 1.02**3)
+    # legacy float rule gives the old multiplicative decay
+    _, legacy = step_track(state, model, rng, time_step_h=3.0, land_decay=0.92)
+    assert legacy["max_wind_speed_kt"] == pytest.approx(100.0 * 0.92**3)
+
+
+def test_fitted_catalog_has_a_land_decay_model_and_terminates_remnants(fitted_catalog):
+    from natcat.stochastic import LandDecayModel
+
+    assert isinstance(fitted_catalog.land_decay, LandDecayModel)
+    assert fitted_catalog.land_decay.n_points > 100
+    assert 0.03 < fitted_catalog.land_decay.rate_per_h < 0.2
+    assert 10.0 < fitted_catalog.land_decay.floor_kt < 40.0
+    storms = fitted_catalog.generate(n_storms=40)
+    assert "_over_land" not in storms.columns
+    assert storms["hour"].max() <= fitted_catalog.max_hours

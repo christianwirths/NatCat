@@ -294,6 +294,20 @@ def fig_genesis_points(ctx: FigureCache) -> None:
     save(fig, FIGURES_DIR / "genesis_points.png")
 
 
+@figure("land_decay")
+def fig_land_decay(ctx: FigureCache) -> None:
+    from natcat.plotting import plot_land_decay, save
+    from natcat.stochastic import extract_landfall_segments
+
+    model = ctx.catalog_model
+    fig, _ = plot_land_decay(
+        model.land_decay,
+        extract_landfall_segments(model.tracks),
+        title="Inland decay: historical landfalls vs. fitted model",
+    )
+    save(fig, FIGURES_DIR / "land_decay.png")
+
+
 @figure("synthetic_tracks")
 def fig_synthetic_tracks(ctx: FigureCache) -> None:
     from natcat.plotting import plot_catalog_comparison, save

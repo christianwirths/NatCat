@@ -29,6 +29,7 @@ A run on the package will not reproduce a run on the old tree because of the fol
 | `tracks.processing.fill_missing_rmw` | `rmw_method="step"` (intensity-class table, `prepare_track` default) | `rmw_method="willoughby"` default; `method="step"` still available | Pre-2005 best tracks carry no observed RMW at all; the step table gave every Category 4+ storm a flat 25 nm, when Hurricane Michael's observed RMW at landfall was 6&#8211;10 nm. `willoughby_rmw` (Willoughby, Darling & Rahn 2006) conditions on intensity and latitude instead. |
 | `hazards.wind_field.DEFAULT_DECAY_EXPONENT` / `DEFAULT_ASYMMETRY_FACTOR` | `2.0` / `0.5` | `0.5` / `0.3` | Chosen by the hazard-parameter grid in the loss calibration against 19 US landfalls (see [Calibration](methodology/calibration.md)); typical calibrated factor error improved from 4.35x to 1.77x. |
 | `stochastic.catalog.SyntheticTCCatalog` (fitting) | Historical tracks truncated after the last hurricane-strength fix before fitting the genesis/transition models | Full track (including post-landfall decay) used when fitting; `truncate_after_hurricane` truncation is still applied by `LossSimulator` at loss-evaluation time | The transition model needs the storm's full life cycle to learn realistic state-to-state transitions, not just the hurricane phase. |
+| `stochastic.transitions.step_track` (land decay) | `land_decay=0.92 ** dt`, no background wind, no coast-crossing split | `land_decay=None` fits a `LandDecayModel` (rate 0.069/h, background wind/floor 25.3 kt) from the historical landfalls; a coast-crossing step is split between the land rule and the sampled water delta; a storm below `remnant_wind_kt` (34 kt) over land for `land_remnant_hours` (24 h) is terminated | The old rule had no background wind and terminated at 15 kt, so synthetic storms lost hurricane strength inland 3&#8211;4x faster than observed (RMSE 21 kt vs. 8.7 kt for the fitted model); the old float form (`0.92`) still works via `LandDecayModel.from_rate`. |
 
 ## Same logic, new address
 
@@ -36,9 +37,9 @@ The formulas are unchanged: the Rankine profile and the motion-asymmetry term
 `factor · translation speed · sin(angle)` (defaults for both changed after this migration &#8212;
 see the table above), the RMW step heuristic (80/60/40/25/15 nm, 1.5x for `EX`, still available as
 `method="step"`), the logistic vulnerability with the 40 kt threshold and the Frame/Masonry
-parameters, KDE genesis with land rejection, the 2&deg; grid Markov transitions, land decay 0.92
-and RMW growth 1.02 per hour, the Poisson frequency, the 95th-percentile tail split, haversine
-distance and bearing.
+parameters, KDE genesis with land rejection, the 2&deg; grid Markov transitions, RMW growth 1.02
+per hour over land (land decay itself is now fitted &#8212; see the table above), the Poisson
+frequency, the 95th-percentile tail split, haversine distance and bearing.
 
 | Old | New | Notes |
 |---|---|---|

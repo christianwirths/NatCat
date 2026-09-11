@@ -6,9 +6,11 @@ so they are safe to import and call eagerly.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 
 from natcat.plotting.style import (
     FIGSIZE_SINGLE,
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
 __all__ = [
     "plot_annual_loss_distribution",
     "plot_ep_curve",
+    "plot_land_decay",
     "plot_rmw_heuristic",
     "plot_vulnerability",
     "plot_wind_profile",
@@ -592,4 +595,100 @@ def plot_ep_curve(
         if return_period_axis:
             secax = ax.secondary_yaxis("right", functions=(_safe_reciprocal, _safe_reciprocal))
             secax.set_ylabel("Return period (years)")
+    return fig, ax
+
+
+def plot_land_decay(
+    model,
+    segments: pd.DataFrame,
+    *,
+    legacy_factor: float | None = 0.92,
+    classes: Sequence[tuple[float, float]] = ((34.0, 63.0), (64.0, 95.0), (96.0, 200.0)),
+    max_hours: float = 48.0,
+    ax: Axes | None = None,
+    title: str | None = None,
+) -> tuple[Figure, Axes]:
+    """Observed inland decay versus the fitted :class:`LandDecayModel`.
+
+    For each landfall-intensity class the median observed wind per 3-hour bin
+    after landfall is drawn with its inter-quartile band, together with the
+    model curve started from the class's mean landfall wind and, dashed, the
+    legacy exponential rule without a background wind.
+
+    Parameters
+    ----------
+    model : natcat.stochastic.LandDecayModel
+        Fitted decay model.
+    segments : pandas.DataFrame
+        Output of :func:`natcat.stochastic.extract_landfall_segments`.
+    legacy_factor : float, optional
+        Per-hour factor of the legacy rule to draw for comparison; ``None``
+        omits it.
+    classes : sequence of (lo, hi)
+        Landfall-wind classes in knots.
+    max_hours : float, default 48.0
+        Time axis limit.
+    ax : matplotlib.axes.Axes, optional
+    title : str, optional
+
+    Returns
+    -------
+    tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+    """
+    with style_context():
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(7.2, 4.4))
+        else:
+            fig = ax.figure
+
+        hours = np.linspace(0.0, max_hours, 200)
+        colours = [PALETTE["accent"], PALETTE["accent_orange"], "#B91C1C"]
+        for (lo, hi), colour in zip(classes, colours, strict=False):
+            part = segments[
+                (segments["wind_at_landfall_kt"] >= lo)
+                & (segments["wind_at_landfall_kt"] <= hi)
+                & (segments["hours"] <= max_hours)
+            ]
+            if part.empty:
+                continue
+            bins = (part["hours"] / 3.0).round() * 3.0
+            grouped = part.groupby(bins)["max_wind_speed_kt"]
+            centres = grouped.median().index.to_numpy()
+            ax.fill_between(
+                centres, grouped.quantile(0.25).to_numpy(), grouped.quantile(0.75).to_numpy(),
+                color=colour, alpha=0.12, lw=0,
+            )  # fmt: skip
+            n_storms = part["storm"].nunique()
+            ax.plot(
+                centres, grouped.median().to_numpy(), "o", color=colour, ms=3.5,
+                label=f"observed, landfall {lo:.0f}-{min(hi, 150):.0f} kt (n={n_storms})",
+            )  # fmt: skip
+            wind_0 = float(part["wind_at_landfall_kt"].mean())
+            ax.plot(hours, model.step(wind_0, hours), color=colour, lw=1.8)
+            if legacy_factor is not None:
+                ax.plot(
+                    hours, wind_0 * legacy_factor**hours, color=colour, lw=1.0, ls="--", alpha=0.7
+                )
+
+        ax.plot([], [], color=PALETTE["ink"], lw=1.8, label="fitted decay with background wind")
+        if legacy_factor is not None:
+            ax.plot(
+                [],
+                [],
+                color=PALETTE["ink"],
+                lw=1.0,
+                ls="--",
+                label=f"legacy {legacy_factor:g}/h, no floor",
+            )
+        ax.axhline(64.0, color=PALETTE["muted"], lw=0.7, ls=":")
+        ax.axhline(34.0, color=PALETTE["muted"], lw=0.7, ls=":")
+        ax.set_xlim(0, max_hours)
+        ax.set_ylim(0, None)
+        ax.set_xlabel("Hours after landfall")
+        ax.set_ylabel("Maximum sustained wind (kt)")
+        ax.legend(fontsize=7.5, frameon=True, framealpha=0.9, edgecolor="none", loc="upper right")
+        if title:
+            ax.set_title(title, loc="left", fontweight="bold")
     return fig, ax

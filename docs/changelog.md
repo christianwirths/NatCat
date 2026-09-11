@@ -38,6 +38,14 @@ API, a documentation site, and a test suite.
 - `plotting.plot_calibration` (modelled vs. observed loss, before/after),
   `plotting.plot_value_dependent_curves` (calibrated damage-ratio curves by tile value), and
   `plotting.plot_hazard_grid` (calibrated factor error heat map over the hazard-parameter grid).
+- `natcat.stochastic.decay.LandDecayModel`: an exponential inland-decay model (wind relaxing to a
+  background value rather than to zero, after Kaplan & DeMaria 1995), fitted by least squares to
+  the historical landfalls; `extract_landfall_segments` collects the over-land fixes it is fitted
+  on. `LandDecayModel.from_rate` reconstructs the legacy multiplicative rule with no background
+  wind. See [Stochastic track generator: Inland decay](methodology/stochastic-track-generator.md#inland-decay).
+- `plotting.plot_land_decay`: observed inland decay by landfall-intensity class against the fitted
+  `LandDecayModel` curve (and, dashed, the legacy rule). New figure `land_decay.png`
+  (`scripts/make_figures.py`), used on the stochastic track generator methodology page.
 - Installable package layout: `natcat/{data, tracks, hazards, vulnerability, exposure, loss,
   stochastic, financial, plotting, utils}`, each module with a docstring and explicit `__all__`.
 - Top-level re-exports from `natcat/__init__.py`: `TropicalCycloneHazard`, `WindVulnerability`,
@@ -67,6 +75,17 @@ API, a documentation site, and a test suite.
   decay phase; `truncate_after_hurricane` truncation is still applied by `LossSimulator` when
   losses are evaluated. The transition model needs the full life cycle to learn realistic
   state-to-state transitions.
+- **Inland decay fitted from data instead of a fixed 0.92/h multiplier.** `SyntheticTCCatalog`
+  now defaults to `land_decay=None`, which fits a `LandDecayModel` (decay rate and background
+  wind) to the historical landfalls during `fit()`; a step that crosses the coast is split between
+  the land rule and the sampled water delta rather than applying either one in full
+  (`stochastic.transitions.step_track`); a storm that has spent `land_remnant_hours` (default 24 h)
+  over land below `remnant_wind_kt` (default 34 kt) is now terminated as a spent remnant. The old
+  rule (multiply by 0.92 per hour, no background wind, terminate at 15 kt) had an RMSE of 21 kt and
+  a +19 kt bias against the historical landfalls, versus 8.7 kt for the fitted model; over the
+  contiguous US, mean hours over land at hurricane force per landfalling storm rose from 0.8
+  (old synthetic) to 2.1 (new), against 2.8 observed. The pre-fit legacy rule is still available
+  via `land_decay=0.92` (or any `LandDecayModel.from_rate` factor).
 - **`ValueDependentVulnerability.DEFAULT_BOUNDS` are now physical**, not merely wide: `threshold_kt`
   34&#8211;55 kt, `v50_ref` 80&#8211;180, `v50_slope` &#8722;10..30, `k` 0.05&#8211;0.30, `scale`
   0.05&#8211;1, so the optimiser cannot compensate a biased hazard footprint with an implausible

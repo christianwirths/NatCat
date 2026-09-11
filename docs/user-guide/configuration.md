@@ -36,7 +36,7 @@ overridable keyword arguments on the relevant class or function:
 | `WindVulnerability` | `threshold_kt` | `40.0` | Wind speed below which damage ratio is 0 |
 | `WindVulnerability` | `CONSTRUCTION_PARAMS` | `{"Frame": {...}, "Masonry": {...}}` | `v_50`/`k` per construction type |
 | `SyntheticTCCatalog` | `grid_size` | `2.0` | Degrees per Markov state-grid cell |
-| `SyntheticTCCatalog` | `land_decay` / `land_rmw_growth` | `0.92` / `1.02` | Per-timestep over-land decay/growth |
+| `SyntheticTCCatalog` | `land_decay` / `land_rmw_growth` | `None` (fitted `LandDecayModel`) / `1.02` | Over-land wind decay/RMW growth |
 | `ExceedanceProbability` | `tail_quantile` | `0.95` | Empirical/GPD tail split point |
 
 This keeps every run fully reproducible from its call site &#8212; no hidden global mutation &#8212;

@@ -65,6 +65,7 @@ plotting.plot_vulnerability(vulnerability)                       # damage ratio 
 plotting.plot_wind_profile(vmax=120.0, rmw=25.0)                  # radial wind profile for a set of decay exponents
 plotting.plot_ep_curve(ep, kinds=("aep",))                        # AEP and/or OEP, log-log
 plotting.plot_annual_loss_distribution(results.annual_losses)     # simulated annual loss distribution
+plotting.plot_land_decay(catalog.land_decay, segments)            # observed inland decay vs. the fitted model
 ```
 
 ## Animation

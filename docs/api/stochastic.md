@@ -11,6 +11,10 @@ frequency. See [Stochastic track generator](../methodology/stochastic-track-gene
 
 ::: natcat.stochastic.transitions
 
+## natcat.stochastic.decay
+
+::: natcat.stochastic.decay
+
 ## natcat.stochastic.catalog
 
 ::: natcat.stochastic.catalog

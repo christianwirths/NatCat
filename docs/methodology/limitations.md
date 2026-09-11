@@ -70,6 +70,11 @@ not been calibrated or validated against observed claims data.
 - **No storm-count or intensity trend.** The Poisson frequency model uses the full historical mean
   rate; it does not represent any long-term trend in frequency or intensity (e.g. due to
   sea-surface temperature warming).
+- **Inland decay is a single fitted curve, not terrain- or size-aware.** `LandDecayModel` fits one
+  exponential decay-to-background-wind relation (rate 0.069/h, background wind 25.3 kt) to every
+  historical landfall pooled together; the residual RMSE is 8.7 kt, but the model carries no
+  dependence on terrain, storm size, translation speed, or track angle at the coast &#8212; factors
+  known to modulate real inland decay rates.
 
 - **Radius of maximum wind is an unconstrained random walk.** Most historical fixes carry no
   observed RMW, so the transition deltas are dominated by heuristic class-to-class jumps. Synthetic
