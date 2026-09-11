@@ -25,6 +25,7 @@ import pandas as pd
 __all__ = [
     "REQUIRED_COLUMNS",
     "US_CPI",
+    "US_GDP_NOMINAL_TN",
     "load_observed_losses",
     "normalise_losses",
 ]
@@ -43,6 +44,18 @@ US_CPI: dict[int, float] = {
     2007: 207.3, 2008: 215.3, 2009: 214.5, 2010: 218.1, 2011: 224.9, 2012: 229.6,
     2013: 233.0, 2014: 236.7, 2015: 237.0, 2016: 240.0, 2017: 245.1, 2018: 251.1,
     2019: 255.7, 2020: 258.8, 2021: 271.0, 2022: 292.7, 2023: 304.7, 2024: 313.7,
+}  # fmt: skip
+
+#: US nominal GDP, trillions of USD (BEA, annual). Nominal GDP grows with prices,
+#: population and real income per head, which makes it a compact proxy for the
+#: price x wealth x population normalisation of Pielke et al. (2008).
+US_GDP_NOMINAL_TN: dict[int, float] = {
+    1989: 5.64, 1990: 5.96, 1991: 6.16, 1992: 6.52, 1993: 6.86, 1994: 7.29, 1995: 7.64,
+    1996: 8.07, 1997: 8.58, 1998: 9.06, 1999: 9.63, 2000: 10.25, 2001: 10.58, 2002: 10.94,
+    2003: 11.46, 2004: 12.21, 2005: 13.04, 2006: 13.82, 2007: 14.47, 2008: 14.77, 2009: 14.48,
+    2010: 15.05, 2011: 15.60, 2012: 16.25, 2013: 16.88, 2014: 17.61, 2015: 18.30, 2016: 18.80,
+    2017: 19.61, 2018: 20.66, 2019: 21.54, 2020: 21.35, 2021: 23.68, 2022: 26.01, 2023: 27.72,
+    2024: 29.18,
 }  # fmt: skip
 
 
@@ -103,9 +116,9 @@ def normalise_losses(
     df: pd.DataFrame,
     *,
     reference_year: int = 2018,
-    method: str = "cpi",
+    method: str = "gdp",
 ) -> pd.DataFrame:
-    """Bring observed losses to the price level of the exposure's reference year.
+    """Bring observed losses to the exposure's reference year.
 
     Adds ``normalisation_factor`` (unless the table already carries one, which
     is then kept) and ``observed_loss_ref_usd``.
@@ -116,10 +129,13 @@ def normalise_losses(
         Table from :func:`load_observed_losses`. Never mutated.
     reference_year : int, default 2018
         Year the exposure values refer to (LitPop's default reference year).
-    method : {"cpi", "none"}, default "cpi"
-        ``"cpi"`` scales by the ratio of US CPI-U annual averages; ``"none"``
-        uses a factor of one. Neither accounts for exposure growth, so old
-        storms are under-normalised relative to today's building stock.
+    method : {"gdp", "cpi", "none"}, default "gdp"
+        ``"gdp"`` scales by the ratio of US nominal GDP, a proxy for the
+        price x wealth x population normalisation of Pielke et al. (2008)
+        that accounts for exposure growth; ``"cpi"`` scales by the ratio of US
+        CPI-U annual averages (prices only, so old storms stay under-normalised
+        relative to today's building stock); ``"none"`` uses a factor of one.
+        Neither captures that coastal counties grew faster than the nation.
 
     Returns
     -------
@@ -128,23 +144,25 @@ def normalise_losses(
     Raises
     ------
     ValueError
-        For an unknown method or a year outside :data:`US_CPI`.
+        For an unknown method or a year outside the normalisation table.
     """
     out = df.copy()
     if "normalisation_factor" in out.columns and out["normalisation_factor"].notna().all():
         factor = out["normalisation_factor"].astype(float).to_numpy()
     elif method == "none":
         factor = np.ones(len(out))
-    elif method == "cpi":
+    elif method in ("cpi", "gdp"):
+        table = US_CPI if method == "cpi" else US_GDP_NOMINAL_TN
         try:
-            ref = US_CPI[int(reference_year)]
-            factor = np.array([ref / US_CPI[int(y)] for y in out["loss_year"]])
+            ref = table[int(reference_year)]
+            factor = np.array([ref / table[int(y)] for y in out["loss_year"]])
         except KeyError as exc:
             raise ValueError(
-                f"No CPI value for year {exc}; extend US_CPI or pass a normalisation_factor"
+                f"No {method.upper()} value for year {exc}; extend the table or pass a "
+                "normalisation_factor column"
             ) from exc
     else:
-        raise ValueError(f"Unknown normalisation method {method!r}; use 'cpi' or 'none'")
+        raise ValueError(f"Unknown normalisation method {method!r}; use 'gdp', 'cpi' or 'none'")
     out["normalisation_factor"] = factor
     out["observed_loss_ref_usd"] = out["observed_loss_usd"].to_numpy() * factor
     return out

@@ -14,10 +14,18 @@ not been calibrated or validated against observed claims data.
   wind field is close to axisymmetric plus a single correction rather than the more complex,
   often asymmetric structure of real storms (eyewall replacement cycles, convective bursts, wind
   shear-induced tilt).
-- **Steep default decay exponent.** The default Rankine decay exponent of 2 is steeper than
-  observed TC wind profiles (see [Wind field](wind-field.md)); it is kept for continuity with
-  earlier results in this project rather than for physical fidelity. Pass `exponent=0.5` for a more
-  realistic profile if reproducibility with prior runs is not required.
+- **Hazard defaults rest on 19 storms.** `DEFAULT_DECAY_EXPONENT = 0.5` and
+  `DEFAULT_ASYMMETRY_FACTOR = 0.3` were chosen by the hazard-parameter grid in
+  [Calibration](calibration.md), which minimises the calibrated total-economic-damage error against
+  NHC Tropical Cyclone Report losses for 19 US landfalls (1989&#8211;2020, wind-dominated storms
+  only). Nineteen storms, one basin, one exposure model (LitPop) and one loss basis (total economic
+  damage, not insured loss) is a narrow evidence base for a global default; the grid itself is also
+  fairly flat (1.77x&#8211;2.08x typical factor error across it), so the "best" point is not sharply
+  identified.
+- **RMW relation is a climatological fit, not storm-specific structure.** `willoughby_rmw` gives the
+  same radius to every storm of a given intensity and latitude; it carries no information about a
+  particular storm's eyewall replacement cycles, environmental shear, or measured RMW trend, and
+  systematically misses storms that are unusually compact or broad for their strength.
 - **Footprints are sampled in time, not integrated.** The maximum wind at a location is the
   maximum over the discrete, interpolated track positions. The default 5-minute step keeps the
   sampling error small for any realistic storm, but a coarser `freq` (as used for quick runs)

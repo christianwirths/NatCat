@@ -55,9 +55,9 @@ J(\theta) = \frac{\sum_s w_s \,\big[\log_{10} L_s(\theta) - \log_{10} O_s\big]^2
 \]
 
 where \(L_s(\theta)\) is the modelled ground-up portfolio loss for storm \(s\) under parameters
-\(\theta\), \(O_s\) is the (CPI-normalised) observed loss, and \(w_s\) is the storm's `weight`
-(default 1 for every storm; set via the observed-loss table's `weight` column). A floor of $1
-keeps \(\log_{10}\) finite for a parameter set that produces zero loss for some storm.
+\(\theta\), \(O_s\) is the (GDP-normalised, by default) observed loss, and \(w_s\) is the storm's
+`weight` (default 1 for every storm; set via the observed-loss table's `weight` column). A floor of
+$1 keeps \(\log_{10}\) finite for a parameter set that produces zero loss for some storm.
 
 Log ratios rather than absolute or relative errors, for two reasons:
 
@@ -87,15 +87,46 @@ point (e.g. re-fitting after a small change to the observed-loss table). In both
 returns parameters with a worse objective than the starting model; if the optimiser fails to
 improve, it keeps the starting values and logs a warning.
 
+## Hazard parameter grid
+
+`Calibrator` only fits the vulnerability; the Rankine decay exponent and motion-asymmetry factor
+(see [Wind field](wind-field.md)) are hazard parameters, and changing either one changes the wind
+footprint of every storm, not just the loss for a fixed footprint. They cannot be folded into the
+inner optimisation as ordinary calibratable parameters &#8212; the objective would need to
+recompute an `(track points, exposure locations)` footprint at every evaluation instead of reusing
+a cached one, which is orders of magnitude slower over hundreds of evaluations.
+
+`calibrate_hazard_grid(inputs, model, decay_exponents=(0.5, 0.75, 1.0, 1.5, 2.0), asymmetry_factors=(0.3, 0.5, 0.7))`
+instead treats them as an outer loop: for every grid point it rebuilds the `TropicalCycloneHazard`
+with that `decay_exponent`/`asymmetry_factor`, recomputes every storm's footprint
+(`cases_from_inputs`), runs the full inner `Calibrator.fit` on the resulting cases, and records the
+calibrated objective. The grid point with the lowest calibrated objective wins &#8212; not the point
+that fits best *before* calibration, since the vulnerability can partially compensate for a
+mis-shaped footprint and the interesting comparison is what each hazard shape allows the best
+possible vulnerability fit to achieve.
+
+![Calibrated factor error over the hazard-parameter grid](../assets/figures/calibration_hazard_grid.png){ width="100%" }
+*Figure: typical factor error after calibration at every (decay exponent, asymmetry factor) grid
+point; the circled cell is the winner.*
+
+Across the grid, lower decay exponents are consistently better (1.77x&#8211;2.08x typical factor
+error), and `exponent=0.5, factor=0.3` &#8212; the textbook "modified Rankine" shape, with the
+smallest motion-asymmetry contribution tried &#8212; wins outright. These are now
+`DEFAULT_DECAY_EXPONENT` and `DEFAULT_ASYMMETRY_FACTOR` in `natcat.hazards.wind_field`.
+
 ## Observed-loss data
 
 The bundled table (`natcat/calibration/data/nhc_us_landfall_losses.csv`) lists US tropical cyclone
 landfalls with the **total damage estimate from the NHC Tropical Cyclone Report (TCR)** of each
 storm, in nominal USD of the loss year &#8212; the NHC's own post-storm damage assessment, not an
-insurance industry loss estimate. `normalise_losses` scales these nominal figures to the price
-level of the exposure's reference year (2018 for the bundled LitPop default) using US CPI-U annual
-averages, so a $7 B 1989 loss (Hugo) and a $25 B 2018 loss (Michael) are compared on a common price
-basis before being fed to the objective.
+insurance industry loss estimate. `normalise_losses(method="gdp")` (the default) scales these
+nominal figures to the exposure's reference year (2018 for the bundled LitPop default) by the ratio
+of US nominal GDP between the loss year and the reference year: nominal GDP grows with prices,
+population and real income per head, which makes it a compact stand-in for the price &times; wealth
+&times; population normalisation of Pielke et al. (2008) &#8212; the standard approach in the
+hurricane-normalisation literature for comparing storms from different decades on a like-for-like
+exposure basis. `method="cpi"` is still available and scales by US CPI-U alone (prices only, no
+exposure-growth correction); `method="none"` applies no scaling.
 
 Every row carries a `damage_driver` (`wind`, `mixed`, `surge`, `flood`) and an `include` flag.
 Storms whose TCR narrative attributes most of the damage to storm surge or rainfall/inland flooding
@@ -108,6 +139,45 @@ push the fit toward wind parameters that overstate wind vulnerability to compens
 model does not represent. The default calibration set is about 19 US landfalls between 1989 and
 2020, all flagged `wind` or `mixed` (i.e. still partly non-wind, but not surge/flood-dominated).
 
+## Calibration result
+
+`scripts/calibrate.py` run against the bundled 19-storm set (GDP-normalised to 2018), with the
+hazard grid above and `ValueDependentVulnerability`'s default bounds:
+
+| | Before | After |
+|---|---|---|
+| Hazard | `exponent=2.0, factor=0.5` (pre-calibration default) | `exponent=0.5, factor=0.3` (hazard grid winner) |
+| Typical factor error | 4.35x | **1.89x** |
+
+with fitted parameters `threshold_kt=34.0`, `v50_ref=80.0`, `v50_slope=19.7` (kt per decade of tile
+value), `k=0.080`, `scale=0.53`. Seventeen of the 19 storms land within a factor of two of observed.
+See `docs/assets/data/calibration_result.json` for the per-storm table and
+`ValueDependentVulnerability.calibrated()` for the parameters as a ready-to-use model.
+
+Three of the five parameters sit on a bound, and that is deliberate. Storm totals alone cannot tell
+a flat curve on a fully damageable tile (`k=0.054, scale=1.0`, factor error 1.77x) from a steeper
+curve on a partly damageable tile (`k=0.08, scale=0.53`, 1.89x): both reproduce the 19 totals about
+equally well. They differ in *where* the loss sits. The flat solution puts about 20 % damage on
+low-value tiles at tropical-storm force, which spreads a hurricane's footprint over hundreds of
+nautical miles at ratios no post-event survey supports. The lower bound on `k` (a 20-80 %
+transition no wider than 35 kt) settles that ambiguity on the plausible side at a small cost in
+fit, and `v50_bounds` keeps every tile at least as sturdy as a light-frame residential curve.
+Relax `bounds=` in `Calibrator` if your own loss data can discriminate the shape.
+
+The earlier fit on the step-table RMW with CPI normalisation and `exponent=2` was the symptom that
+flagged the hazard side as broken: the pre-2005 storms in the set carry no observed RMW, and the
+step table's 25 nm for Category 4+ storms made those footprints roughly 10x too intense, which the
+optimiser could only partially compensate for by running to its bounds (6.7x to 2.5x).
+
+### Independent check of the decay exponent
+
+The hazard grid picks its exponent by loss fit. `implied_decay_exponents(data_dir)` inverts the
+Rankine profile for every hurricane-strength best-track fix that reports both a radius of maximum
+wind and a 34/50/64 kt wind radius (5,153 fixes from 143 storms, 2000-2020). The median implied
+exponent is 0.53 (inter-quartile range 0.41-0.68; 0.48 for Category 1-2, 0.62 for Category 3+).
+The loss-calibrated 0.5 therefore agrees with the wind observations, and the pre-calibration 2.0
+does not.
+
 ## Caveats
 
 Read this before using a calibrated model for anything beyond exploring how the pipeline responds
@@ -118,17 +188,17 @@ to a different vulnerability curve.
   ground-up loss. Even the storms flagged `wind`/`mixed` carry some non-wind damage; the calibration
   is implicitly asking the wind-only model to absorb that residual, which biases the fitted curve
   toward *higher* apparent wind vulnerability than a true wind-only loss would justify.
-- **CPI ignores exposure growth.** `normalise_losses(method="cpi")` corrects for inflation only. It
-  does not correct for the growth in the amount and value of exposed property since the loss year
-  &#8212; coastal development, population growth, and construction-cost increases beyond general CPI
-  all mean a storm from 1989 or 1992 is under-normalised relative to today's building stock, and its
-  normalised loss understates what the same storm would cause against current LitPop exposure.
+- **GDP normalisation is a national, not a coastal, proxy.** `normalise_losses(method="gdp")`
+  captures national growth in prices, wealth and population, but coastal counties have grown faster
+  than the nation as a whole; a storm from 1989 or 1992 is likely still under-normalised relative to
+  today's coastal building stock. `method="cpi"` is available for a prices-only comparison but
+  ignores exposure growth entirely, which is worse on this dimension.
 - **LitPop value is not insured value.** LitPop disaggregates a proxy for asset value from
   nightlight intensity and population; it is not an actual insured-value or replacement-cost
   dataset. The calibration is fitting a wind-speed-vs-loss relationship against *this* value
   surface, so a curve calibrated here does not transfer cleanly to a portfolio valued on a different
   basis (e.g. actual insured TIV).
-- **Small sample.** About 19 storms drive a 4-parameter fit. This is enough to get a reasonable
+- **Small sample.** 19 storms drive a 5-parameter fit. This is enough to get a reasonable
   order-of-magnitude curve, not enough for the kind of statistical confidence a claims-calibrated
   industry vulnerability function would carry; a handful of storms with unusual damage narratives
   can move the fit noticeably.
@@ -138,6 +208,9 @@ to a different vulnerability curve.
   rural one). If most storms in the set hit similar value mixes, `v50_slope` trades off against
   `v50_ref` and the optimiser can settle on a slope that fits the sample without being a reliable
   estimate of how vulnerability actually varies with value.
+- **Equifinality of the curve shape.** As described above, the fit is nearly flat along a ridge that
+  trades curve steepness against the damageable share; the reported parameters are the plausible end
+  of that ridge, not a unique optimum. Spatial loss data (county-level or claims) would resolve it.
 - **The bundled numbers are a curated starting point, not an authoritative loss database.** They
   were transcribed from NHC TCR summaries for this project and have not been independently audited;
   check them against the cited reports, and prefer your own (e.g. insured) losses via
@@ -155,3 +228,6 @@ to a different vulnerability curve.
   *Nature Sustainability*, 1, 808&#8211;813.
 - Storn, R., & Price, K. (1997). Differential Evolution &#8211; A Simple and Efficient Heuristic for
   Global Optimization over Continuous Spaces. *Journal of Global Optimization*, 11(4), 341&#8211;359.
+- Willoughby, H. E., Darling, R. W. R., & Rahn, M. E. (2006). *Parametric Representation of the
+  Primary Hurricane Vortex. Part II: A New Family of Sectionally Continuous Profiles.* Monthly
+  Weather Review, 134(4), 1102&#8211;1120.

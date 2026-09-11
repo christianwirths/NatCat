@@ -17,6 +17,10 @@ the value-dependent vulnerability model, and the calibration figures. See
 
 ::: natcat.calibration.calibrator
 
+## natcat.calibration.hazard
+
+::: natcat.calibration.hazard
+
 ## natcat.vulnerability.value
 
 ::: natcat.vulnerability.value

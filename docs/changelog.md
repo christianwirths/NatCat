@@ -11,20 +11,33 @@ API, a documentation site, and a test suite.
 ### Added
 
 - `natcat.calibration`: `load_observed_losses`/`normalise_losses` for observed storm-loss tables
-  (the bundled NHC US-landfall CSV, CPI-normalised to an exposure reference year), `build_cases`/
-  `save_cases`/`load_cases` for precomputed, cacheable per-storm footprints (`StormCase`), and
-  `Calibrator`/`CalibrationResult` to fit a vulnerability model's parameters against them with
-  `scipy.optimize.differential_evolution` plus a local polish. See `scripts/calibrate.py`,
-  [Calibration](user-guide/calibration.md) and
+  (the bundled NHC US-landfall CSV, GDP-normalised to an exposure reference year by default),
+  `prepare_inputs`/`cases_from_inputs`/`save_inputs`/`load_inputs` for cacheable, hazard-independent
+  per-storm inputs (`CaseInput`: track + regional exposure), `build_cases`/`save_cases`/`load_cases`
+  as a footprint-included shorthand (`StormCase`), and `Calibrator`/`CalibrationResult` to fit a
+  vulnerability model's parameters against them with `scipy.optimize.differential_evolution` plus a
+  local polish. See `scripts/calibrate.py`, [Calibration](user-guide/calibration.md) and
   [Calibration methodology](methodology/calibration.md).
+- `natcat.calibration.calibrate_hazard_grid`/`HazardGridResult`: an outer loop over the Rankine
+  decay exponent and motion-asymmetry factor that recomputes every storm's footprint and refits the
+  vulnerability at each grid point, so the hazard shape itself can be chosen by calibrated fit
+  quality rather than assumed. See [Calibration methodology](methodology/calibration.md#hazard-parameter-grid).
 - `ValueDependentVulnerability`: a logistic wind vulnerability curve whose half-damage wind speed
   varies with the log of exposure tile value, the model `natcat.calibration` is designed to fit.
+  `ValueDependentVulnerability.calibrated()`/`CALIBRATED_PARAMS` ship the parameters fitted against
+  the bundled 19-storm set (typical factor error 1.89x) as a ready-to-use model, no calibration run
+  required.
 - `VulnerabilityModel.damage_ratio` gained a `tiv` keyword (ignored by `WindVulnerability`, used by
   `ValueDependentVulnerability`); `WindVulnerability`/`ValueDependentVulnerability` gained
   `params`/`with_params` to expose and update their calibratable scalars, the interface
   `Calibrator` optimises over.
-- `plotting.plot_calibration` (modelled vs. observed loss, before/after) and
-  `plotting.plot_value_dependent_curves` (calibrated damage-ratio curves by tile value).
+- `natcat.tracks.processing.willoughby_rmw`: the Willoughby, Darling & Rahn (2006) radius-of-
+  maximum-wind relation (intensity + latitude), now the default for `fill_missing_rmw`/
+  `prepare_track` (`rmw_method="willoughby"`); the previous intensity-class step table survives as
+  `method="step"`.
+- `plotting.plot_calibration` (modelled vs. observed loss, before/after),
+  `plotting.plot_value_dependent_curves` (calibrated damage-ratio curves by tile value), and
+  `plotting.plot_hazard_grid` (calibrated factor error heat map over the hazard-parameter grid).
 - Installable package layout: `natcat/{data, tracks, hazards, vulnerability, exposure, loss,
   stochastic, financial, plotting, utils}`, each module with a docstring and explicit `__all__`.
 - Top-level re-exports from `natcat/__init__.py`: `TropicalCycloneHazard`, `WindVulnerability`,
@@ -39,6 +52,25 @@ API, a documentation site, and a test suite.
 
 ### Changed
 
+- **Calibrated hazard defaults.** `DEFAULT_DECAY_EXPONENT` (2.0 &rarr; 0.5) and
+  `DEFAULT_ASYMMETRY_FACTOR` (0.5 &rarr; 0.3) in `natcat.hazards.wind_field` are now the winning
+  point of the hazard-parameter grid, calibrated against 19 US landfalls (typical factor error
+  improved from 4.35x to 1.89x). The pre-calibration values remain available by passing them
+  explicitly.
+- **RMW fill defaults to the Willoughby relation.** `fill_missing_rmw`/`prepare_track` default to
+  `method`/`rmw_method="willoughby"` instead of the intensity-class step table, which gave every
+  Category 4+ storm a flat 25 nm RMW when observed values (e.g. Hurricane Michael, 6&#8211;10 nm)
+  were often far smaller &#8212; a real problem for the many pre-2005 best tracks that carry no
+  observed RMW at all.
+- **Catalog fitting no longer truncates historical tracks.** `SyntheticTCCatalog` fits its genesis
+  and transition models on each historical track's full life cycle, including the post-landfall
+  decay phase; `truncate_after_hurricane` truncation is still applied by `LossSimulator` when
+  losses are evaluated. The transition model needs the full life cycle to learn realistic
+  state-to-state transitions.
+- **`ValueDependentVulnerability.DEFAULT_BOUNDS` are now physical**, not merely wide: `threshold_kt`
+  34&#8211;55 kt, `v50_ref` 80&#8211;180, `v50_slope` &#8722;10..30, `k` 0.05&#8211;0.30, `scale`
+  0.05&#8211;1, so the optimiser cannot compensate a biased hazard footprint with an implausible
+  damage curve.
 - **Tracks are truncated after the last hurricane-strength fix** (`truncate_after_hurricane`,
   default on in `prepare_track`, `load_best_track` and `LossSimulator`). The decaying
   post-landfall phase carries observed radii of maximum wind of 100 nm and more, which the

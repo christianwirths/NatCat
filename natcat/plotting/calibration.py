@@ -14,9 +14,10 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
     from natcat.calibration.calibrator import CalibrationResult
+    from natcat.calibration.hazard import HazardGridResult
     from natcat.vulnerability.value import ValueDependentVulnerability
 
-__all__ = ["plot_calibration", "plot_value_dependent_curves"]
+__all__ = ["plot_calibration", "plot_hazard_grid", "plot_value_dependent_curves"]
 
 
 def plot_calibration(
@@ -157,6 +158,73 @@ def plot_value_dependent_curves(
         ax.set_xlabel("Maximum sustained wind (kt)")
         ax.set_ylabel("Mean damage ratio")
         ax.legend(fontsize=8, frameon=True, framealpha=0.9, edgecolor="none", loc="lower right")
+        if title:
+            ax.set_title(title, loc="left", fontweight="bold")
+    return fig, ax
+
+
+def plot_hazard_grid(
+    result: HazardGridResult,
+    *,
+    ax: Axes | None = None,
+    title: str | None = None,
+) -> tuple[Figure, Axes]:
+    """Heat map of the calibrated factor error over the hazard-parameter grid.
+
+    Parameters
+    ----------
+    result : HazardGridResult
+        Output of :func:`natcat.calibration.calibrate_hazard_grid`.
+    ax : matplotlib.axes.Axes, optional
+    title : str, optional
+
+    Returns
+    -------
+    tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+    """
+    with style_context():
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(6.5, 4.2))
+        else:
+            fig = ax.figure
+
+        table = result.table
+        exponents = sorted(table["decay_exponent"].unique())
+        asymmetries = sorted(table["asymmetry_factor"].unique())
+        grid = table.pivot(
+            index="asymmetry_factor", columns="decay_exponent", values="factor_error"
+        ).reindex(index=asymmetries, columns=exponents)
+        image = ax.imshow(
+            grid.to_numpy(), origin="lower", cmap="viridis_r", aspect="auto",
+            interpolation="nearest",
+        )  # fmt: skip
+        ax.set_xticks(range(len(exponents)), [f"{e:g}" for e in exponents])
+        ax.set_yticks(range(len(asymmetries)), [f"{a:g}" for a in asymmetries])
+        ax.set_xlabel("Rankine decay exponent")
+        ax.set_ylabel("Motion asymmetry factor")
+        values = grid.to_numpy()
+        vmid = np.nanmean(values)
+        for i in range(len(asymmetries)):
+            for j in range(len(exponents)):
+                value = values[i, j]
+                if np.isfinite(value):
+                    ax.text(
+                        j, i, f"{value:.2f}x", ha="center", va="center", fontsize=8,
+                        color="white" if value > vmid else PALETTE["ink"],
+                    )  # fmt: skip
+        best_e, best_a = (
+            result.best_hazard["decay_exponent"],
+            result.best_hazard["asymmetry_factor"],
+        )
+        ax.scatter(
+            [exponents.index(best_e)], [asymmetries.index(best_a)], s=260, facecolor="none",
+            edgecolor=PALETTE["accent_orange"], linewidth=2.0, zorder=5,
+        )  # fmt: skip
+        cbar = fig.colorbar(image, ax=ax, fraction=0.046, pad=0.03)
+        cbar.set_label("Typical factor error after calibration")
+        ax.grid(False)
         if title:
             ax.set_title(title, loc="left", fontweight="bold")
     return fig, ax

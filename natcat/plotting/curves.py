@@ -299,7 +299,10 @@ def plot_vulnerability(
 
 
 def plot_rmw_heuristic(ax: Axes | None = None) -> tuple[Figure, Axes]:
-    """Step-plot the RMW-by-intensity-class heuristic with category bands.
+    """Plot the RMW relations used for fixes without an observed radius.
+
+    The Willoughby et al. (2006) relation (default) is drawn for three
+    latitudes against the legacy intensity-class step table.
 
     Parameters
     ----------
@@ -314,6 +317,8 @@ def plot_rmw_heuristic(ax: Axes | None = None) -> tuple[Figure, Axes]:
     --------
     >>> fig, ax = plot_rmw_heuristic()
     """
+    from natcat.tracks.processing import willoughby_rmw
+
     with style_context():
         import matplotlib.pyplot as plt
 
@@ -324,18 +329,26 @@ def plot_rmw_heuristic(ax: Axes | None = None) -> tuple[Figure, Axes]:
 
         _draw_category_bands(ax, _C5_PLOT_CEILING)
 
+        winds = np.linspace(20.0, _C5_PLOT_CEILING, 200)
+        for latitude, colour in ((15.0, PALETTE["accent"]), (25.0, "#1E40AF"), (35.0, "#0F172A")):
+            ax.plot(
+                winds, willoughby_rmw(winds, latitude), color=colour, linewidth=2.0,
+                label=f"Willoughby et al. (2006), {latitude:.0f}°N",
+            )  # fmt: skip
+
         edges = [0.0, *[edge for edge, _ in _RMW_HEURISTIC_STEPS]]
         values = [rmw for _, rmw in _RMW_HEURISTIC_STEPS]
-        x_plot = edges[:-1] + [edges[-1]]
-        y_plot = values + [values[-1]]
-        ax.step(x_plot, y_plot, where="post", color=PALETTE["accent"], linewidth=2.0)
-        ax.scatter(edges[:-1], values, color=PALETTE["accent"], s=18, zorder=5)
+        ax.step(
+            edges[:-1] + [edges[-1]], values + [values[-1]], where="post",
+            color=PALETTE["muted"], linewidth=1.4, linestyle="--", label="legacy step table",
+        )  # fmt: skip
 
         ax.set_xlim(0, _C5_PLOT_CEILING)
         ax.set_ylim(0, 90)
         ax.set_xlabel("Maximum sustained wind speed (kt)")
         ax.set_ylabel("Radius of maximum wind (nm)")
-        ax.set_title("RMW heuristic by intensity class", loc="left", fontweight="bold", pad=16)
+        ax.legend(fontsize=8, frameon=True, framealpha=0.9, edgecolor="none", loc="upper right")
+        ax.set_title("RMW relations for missing values", loc="left", fontweight="bold", pad=16)
     return fig, ax
 
 

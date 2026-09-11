@@ -99,11 +99,14 @@ def test_bundled_table_loads_and_filters():
     assert "AL092017" not in set(included["storm_id"])  # Harvey: flood, excluded
 
 
-def test_normalise_losses_cpi_inflates_old_storms():
+def test_normalise_losses_inflates_old_storms():
     df = load_observed_losses()
-    out = normalise_losses(df, reference_year=2018)
+    out = normalise_losses(df, reference_year=2018)  # default: nominal GDP
+    cpi = normalise_losses(df, reference_year=2018, method="cpi")
     andrew = out[out["storm_id"] == "AL041992"].iloc[0]
     michael = out[out["storm_id"] == "AL142018"].iloc[0]
+    assert andrew["normalisation_factor"] == pytest.approx(20.66 / 6.52, rel=1e-3)
+    assert cpi[cpi["storm_id"] == "AL041992"].iloc[0]["normalisation_factor"] > 1.5
     assert andrew["normalisation_factor"] > 1.5
     assert michael["normalisation_factor"] == pytest.approx(1.0)
     assert andrew["observed_loss_ref_usd"] == pytest.approx(
@@ -122,7 +125,7 @@ def test_normalise_losses_explicit_factor_and_errors():
     )  # fmt: skip
     assert normalise_losses(df)["observed_loss_ref_usd"].iloc[0] == 6.0
     df = df.drop(columns="normalisation_factor").assign(loss_year=[1850])
-    with pytest.raises(ValueError, match="CPI"):
+    with pytest.raises(ValueError, match="GDP"):
         normalise_losses(df)
     with pytest.raises(ValueError, match="method"):
         normalise_losses(df.assign(loss_year=[2000]), method="magic")
@@ -220,3 +223,72 @@ def test_calibrator_validation():
         Calibrator(
             _synthetic_cases(ValueDependentVulnerability(), rng, 1), ValueDependentVulnerability()
         ).fit(method="nope")
+
+
+# -- hazard grid ------------------------------------------------------------------
+def test_hazard_grid_recovers_true_exponent(tiny_processed):
+    from functools import partial
+
+    from natcat.calibration import CaseInput, calibrate_hazard_grid, cases_from_inputs
+    from natcat.exposure import synthetic_portfolio
+    from natcat.hazards import TropicalCycloneHazard
+
+    truth_vuln = ValueDependentVulnerability(v50_ref=100.0, v50_slope=5.0)
+    truth_hazard = partial(TropicalCycloneHazard, decay_exponent=1.0, asymmetry_factor=0.5)
+    inputs = []
+    for i in range(3):
+        lon = -80.0 + 0.3 * (i - 1)
+        portfolio = synthetic_portfolio(150, bounds=(25.0, 28.0, lon - 0.6, lon + 0.6), seed=i)
+        # each "storm" is the same track shifted in longitude, hitting a different portfolio
+        track = tiny_processed.assign(longitude=tiny_processed["longitude"] + 0.1 * i)
+        inputs.append(CaseInput(f"S{i}", f"s{i}", 1.0, track, portfolio, (25, 28, -81, -79)))
+    for item, case in zip(inputs, cases_from_inputs(inputs, truth_hazard), strict=True):
+        item.observed_loss = case.loss(truth_vuln)
+        assert item.observed_loss > 0
+
+    grid = calibrate_hazard_grid(
+        inputs,
+        ValueDependentVulnerability(),
+        decay_exponents=(1.0, 2.0),
+        asymmetry_factors=(0.5,),
+        param_names=("v50_ref", "v50_slope"),
+        method="local",
+        maxiter=400,
+        progress=False,
+    )
+    assert set(grid.results) == {(1.0, 0.5), (2.0, 0.5)}
+    assert grid.best_hazard == {"decay_exponent": 1.0, "asymmetry_factor": 0.5}
+    assert grid.best.objective < grid.results[(2.0, 0.5)].objective
+    assert len(grid.table) == 2 and "factor_error" in grid.table.columns
+    assert "Best: decay_exponent=1" in grid.summary()
+    assert grid.hazard_factory().keywords == {"decay_exponent": 1.0, "asymmetry_factor": 0.5}
+    with pytest.raises(ValueError, match="at least one"):
+        calibrate_hazard_grid([], ValueDependentVulnerability(), progress=False)
+
+
+def test_inputs_round_trip_and_build_cases_reuse(tmp_path, tiny_processed):
+    from natcat.calibration import CaseInput, build_cases, load_inputs, save_inputs
+    from natcat.exposure import synthetic_portfolio
+
+    portfolio = synthetic_portfolio(50, bounds=(25.0, 28.0, -80.6, -79.4), seed=1)
+    inputs = [CaseInput("S0", "s0", 5.0, tiny_processed, portfolio, (25, 28, -81, -79))]
+    save_inputs(inputs, tmp_path / "inputs.pkl")
+    loaded = load_inputs(tmp_path / "inputs.pkl")
+    cases = build_cases(pd.DataFrame(), inputs=loaded)
+    assert cases[0].storm_id == "S0" and cases[0].n_locations == 50
+    assert cases[0].observed_loss == 5.0
+
+
+def test_implied_decay_exponents_from_bdeck(tmp_path):
+    from natcat.calibration import implied_decay_exponents
+
+    # vmax 100 kt, RMW 20 nm, 50 kt radius 80 nm in every quadrant -> n = ln(2) / ln(4) = 0.5
+    line = "AL, 14, 2018101012,   , BEST,   0, 300N,  850W, 100,  950, HU,  50, NEQ,   80,   80,   80,   80, 1010,  200,  20,\n"
+    weak = line.replace(" 100,  950, HU,  50", "  50,  990, TS,  34")
+    path = tmp_path / "bal142018.dat"
+    path.write_text(line + weak)
+    out = implied_decay_exponents(path)
+    assert len(out) == 1  # the tropical-storm fix is below min_wind_kt
+    assert out["exponent"].iloc[0] == pytest.approx(0.5)
+    assert out["storm_id"].iloc[0] == "AL142018"
+    assert implied_decay_exponents(tmp_path)["exponent"].tolist() == out["exponent"].tolist()

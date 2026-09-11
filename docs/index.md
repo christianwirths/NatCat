@@ -65,6 +65,7 @@ track = load_best_track(2018, "al", "14")
 
 hazard = TropicalCycloneHazard(track)
 vulnerability = WindVulnerability("Masonry")
+# Or use the observed-loss-calibrated model: ValueDependentVulnerability.calibrated()
 portfolio = synthetic_portfolio(n=500, bounds=(28.0, 31.5, -87.5, -83.5), seed=42)
 
 result = LossCalculator(hazard, vulnerability).compute(portfolio)

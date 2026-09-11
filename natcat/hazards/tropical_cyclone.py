@@ -9,7 +9,12 @@ import pandas as pd
 from numpy.typing import ArrayLike, NDArray
 
 from .base import Coordinates, HazardModel, IntensityValues
-from .wind_field import DEFAULT_DECAY_EXPONENT, max_wind_footprint, max_wind_history
+from .wind_field import (
+    DEFAULT_ASYMMETRY_FACTOR,
+    DEFAULT_DECAY_EXPONENT,
+    max_wind_footprint,
+    max_wind_history,
+)
 
 __all__ = ["TropicalCycloneHazard"]
 
@@ -28,9 +33,9 @@ class TropicalCycloneHazard(HazardModel):
         Stored by reference; it is never modified.
     vortex : {'rankine'}, default 'rankine'
         Symmetric wind profile.
-    asymmetry_factor : float, default 0.5
+    asymmetry_factor : float, default DEFAULT_ASYMMETRY_FACTOR (0.3)
         Fraction of the storm translation speed added to the wind field.
-    decay_exponent : float, default 2.0
+    decay_exponent : float, default DEFAULT_DECAY_EXPONENT (0.5)
         Radial decay exponent outside the eyewall. ``1`` is the classical
         Rankine vortex, ``0.5`` the modified Rankine.
     chunk_size : int, default 200_000
@@ -54,7 +59,7 @@ class TropicalCycloneHazard(HazardModel):
         track: pd.DataFrame,
         *,
         vortex: str = "rankine",
-        asymmetry_factor: float = 0.5,
+        asymmetry_factor: float = DEFAULT_ASYMMETRY_FACTOR,
         decay_exponent: float = DEFAULT_DECAY_EXPONENT,
         chunk_size: int = 200_000,
     ) -> None:

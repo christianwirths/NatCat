@@ -26,21 +26,26 @@ A run on the package will not reproduce a run on the old tree because of the fol
 | `tracks.processing.interpolate_track` | Mutated its input and returned only four columns | Never mutates; interpolates every numeric column, carries text columns forward | `storm_type` and pressure were being dropped. |
 | `LossSimulator.run` | Generated the catalog one year at a time | One `generate(n_years=...)` call, grouped by year | The random sequence differs even with the same seed. |
 | `tracks.forecast.prepare_forecast_track` | `time_step='5min'` hard-coded | `freq='1h'` default | Forecast (A-deck) pipeline only; best tracks stay at 5 min. |
+| `tracks.processing.fill_missing_rmw` | `rmw_method="step"` (intensity-class table, `prepare_track` default) | `rmw_method="willoughby"` default; `method="step"` still available | Pre-2005 best tracks carry no observed RMW at all; the step table gave every Category 4+ storm a flat 25 nm, when Hurricane Michael's observed RMW at landfall was 6&#8211;10 nm. `willoughby_rmw` (Willoughby, Darling & Rahn 2006) conditions on intensity and latitude instead. |
+| `hazards.wind_field.DEFAULT_DECAY_EXPONENT` / `DEFAULT_ASYMMETRY_FACTOR` | `2.0` / `0.5` | `0.5` / `0.3` | Chosen by the hazard-parameter grid in the loss calibration against 19 US landfalls (see [Calibration](methodology/calibration.md)); typical calibrated factor error improved from 4.35x to 1.77x. |
+| `stochastic.catalog.SyntheticTCCatalog` (fitting) | Historical tracks truncated after the last hurricane-strength fix before fitting the genesis/transition models | Full track (including post-landfall decay) used when fitting; `truncate_after_hurricane` truncation is still applied by `LossSimulator` at loss-evaluation time | The transition model needs the storm's full life cycle to learn realistic state-to-state transitions, not just the hurricane phase. |
 
 ## Same logic, new address
 
-The formulas are unchanged: Rankine profile with exponent 2, motion asymmetry
-`0.5 · translation speed · sin(angle)`, the RMW heuristic (80/60/40/25/15 nm, 1.5x for `EX`),
-the logistic vulnerability with the 40 kt threshold and the Frame/Masonry parameters, KDE genesis
-with land rejection, the 2° grid Markov transitions, land decay 0.92 and RMW growth 1.02 per hour,
-the Poisson frequency, the 95th-percentile tail split, haversine distance and bearing.
+The formulas are unchanged: the Rankine profile and the motion-asymmetry term
+`factor · translation speed · sin(angle)` (defaults for both changed after this migration &#8212;
+see the table above), the RMW step heuristic (80/60/40/25/15 nm, 1.5x for `EX`, still available as
+`method="step"`), the logistic vulnerability with the 40 kt threshold and the Frame/Masonry
+parameters, KDE genesis with land rejection, the 2&deg; grid Markov transitions, land decay 0.92
+and RMW growth 1.02 per hour, the Poisson frequency, the 95th-percentile tail split, haversine
+distance and bearing.
 
 | Old | New | Notes |
 |---|---|---|
 | `hazards/tropical_cyclone.py::rankine_vortex` | `hazards/wind_field.py::rankine_vortex` | unchanged |
 | `hazards/tropical_cyclone.py::max_wind_speeds_at_locations` | `hazards/wind_field.py::max_wind_footprint` | `iterrows` loop replaced by a chunked `(T, N)` broadcast; equal to floating-point precision |
 | `TropicalCycloneHazard.compute_intensity_at_timestep` | `TropicalCycloneHazard.compute_intensity_history` | one cumulative pass for all timestamps |
-| `hazards/tropical_cyclone.py::get_heuristic_rmw` | `tracks/processing.py::fill_missing_rmw` | unchanged |
+| `hazards/tropical_cyclone.py::get_heuristic_rmw` | `tracks/processing.py::fill_missing_rmw` | step table kept as `method="step"`; default is now `method="willoughby"` (see the table above) |
 | `loss_model.py::LossCalculator.calculate_portfolio_loss` | `loss/calculator.py::LossCalculator.compute` | old name kept as a deprecated alias |
 | `LossCalculator.calculate_portfolio_loss_over_time` | `LossCalculator.compute_history` | |
 | `utils/track.py::track_interpolation` | `tracks/processing.py::interpolate_track` | see table above |

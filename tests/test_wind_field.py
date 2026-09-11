@@ -7,6 +7,8 @@ import pandas as pd
 import pytest
 
 from natcat.hazards.wind_field import (
+    DEFAULT_ASYMMETRY_FACTOR,
+    DEFAULT_DECAY_EXPONENT,
     max_wind_footprint,
     max_wind_history,
     motion_asymmetry,
@@ -15,7 +17,9 @@ from natcat.hazards.wind_field import (
 from natcat.utils.geo import bearing, haversine_distance
 
 
-def brute_force_footprint(track, coords, *, asymmetry_factor=0.5, exponent=2.0):
+def brute_force_footprint(
+    track, coords, *, asymmetry_factor=DEFAULT_ASYMMETRY_FACTOR, exponent=DEFAULT_DECAY_EXPONENT
+):
     """Reference implementation: one Python loop over track points."""
     lat = np.asarray(coords)[:, 0]
     lon = np.asarray(coords)[:, 1]

@@ -25,6 +25,7 @@ from numpy.typing import ArrayLike, NDArray
 from ..config import EARTH_RADIUS_NM
 
 __all__ = [
+    "DEFAULT_ASYMMETRY_FACTOR",
     "DEFAULT_DECAY_EXPONENT",
     "rankine_vortex",
     "motion_asymmetry",
@@ -37,7 +38,12 @@ logger = logging.getLogger(__name__)
 #: Decay exponent used by default outside the eyewall. ``1`` is the classical
 #: Rankine vortex and ``0.4``-``0.6`` the "modified Rankine" common in the TC
 #: literature; ``2`` reproduces the historical behaviour of this package.
-DEFAULT_DECAY_EXPONENT: float = 2.0
+DEFAULT_DECAY_EXPONENT: float = 0.5
+#: Motion-asymmetry factor used by default (share of the translation speed
+#: added on the right of the track). Both defaults come from the loss
+#: calibration against 19 US landfalls (see ``docs/methodology/calibration.md``);
+#: the pre-calibration values were 2.0 and 0.5.
+DEFAULT_ASYMMETRY_FACTOR: float = 0.3
 
 #: Track columns required to evaluate the wind field.
 _REQUIRED_TRACK_COLUMNS: tuple[str, ...] = (
@@ -73,7 +79,7 @@ def rankine_vortex(
         Maximum sustained wind speed at the RMW, in knots.
     rmw : array_like
         Radius of maximum wind, in nautical miles. Must be positive.
-    exponent : float, default 2.0
+    exponent : float, default DEFAULT_DECAY_EXPONENT (0.5)
         Decay exponent outside the eyewall. ``1`` is the classical Rankine
         vortex, ``0.5`` the modified Rankine.
 
@@ -118,7 +124,7 @@ def motion_asymmetry(
         Storm heading, degrees clockwise from north.
     translation_speed : array_like
         Storm forward speed, in knots.
-    factor : float, default 0.5
+    factor : float, default 0.5 (the hazard classes pass DEFAULT_ASYMMETRY_FACTOR)
         Fraction of the translation speed that projects onto the wind field.
 
     Returns
@@ -241,7 +247,7 @@ def max_wind_footprint(
     coords: ArrayLike,
     *,
     vortex: str = "rankine",
-    asymmetry_factor: float = 0.5,
+    asymmetry_factor: float = DEFAULT_ASYMMETRY_FACTOR,
     exponent: float = DEFAULT_DECAY_EXPONENT,
     chunk_size: int = 200_000,
 ) -> NDArray[np.float64]:
@@ -257,9 +263,9 @@ def max_wind_footprint(
         Shape ``(N, 2)`` array of ``[latitude, longitude]`` pairs, in degrees.
     vortex : {'rankine'}, default 'rankine'
         Symmetric wind profile.
-    asymmetry_factor : float, default 0.5
+    asymmetry_factor : float, default DEFAULT_ASYMMETRY_FACTOR (0.3)
         Fraction of the translation speed added to the wind field.
-    exponent : float, default 2.0
+    exponent : float, default DEFAULT_DECAY_EXPONENT (0.5)
         Radial decay exponent outside the eyewall.
     chunk_size : int, default 200_000
         Maximum number of (track point x location) elements held in memory at
@@ -314,7 +320,7 @@ def max_wind_history(
     times: ArrayLike,
     *,
     vortex: str = "rankine",
-    asymmetry_factor: float = 0.5,
+    asymmetry_factor: float = DEFAULT_ASYMMETRY_FACTOR,
     exponent: float = DEFAULT_DECAY_EXPONENT,
     chunk_size: int = 200_000,
 ) -> NDArray[np.float64]:
@@ -335,9 +341,9 @@ def max_wind_history(
         maximum. Times before the first track fix yield zeros.
     vortex : {'rankine'}, default 'rankine'
         Symmetric wind profile.
-    asymmetry_factor : float, default 0.5
+    asymmetry_factor : float, default DEFAULT_ASYMMETRY_FACTOR (0.3)
         Fraction of the translation speed added to the wind field.
-    exponent : float, default 2.0
+    exponent : float, default DEFAULT_DECAY_EXPONENT (0.5)
         Radial decay exponent outside the eyewall.
     chunk_size : int, default 200_000
         Maximum number of (track point x location) elements per chunk.

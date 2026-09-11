@@ -24,8 +24,10 @@ import logging
 
 import numpy as np
 import pandas as pd
+from numpy.typing import ArrayLike
 
 from ..utils.geo import bearing, haversine_distance
+from ..utils.units import KM_PER_NM, MS_PER_KT
 
 __all__ = [
     "INTERPOLATED_COLUMNS",
@@ -56,6 +58,10 @@ _RMW_HEURISTIC: tuple[tuple[float, float], ...] = (
 )
 #: RMW used for Vmax at or above the last heuristic threshold.
 _RMW_DEFAULT: float = 15.0
+#: Willoughby et al. (2006) RMW fit: ``46.4 * exp(-0.0155 * Vmax[m/s] + 0.0169 * |lat|)`` km.
+_WILLOUGHBY_A_KM: float = 46.4
+_WILLOUGHBY_B: float = 0.0155
+_WILLOUGHBY_C: float = 0.0169
 #: Multiplier applied to RMW for extratropical (``TY == 'EX'``) fixes.
 _EX_RMW_FACTOR: float = 1.5
 
@@ -244,19 +250,61 @@ def add_heading(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def fill_missing_rmw(df: pd.DataFrame) -> pd.DataFrame:
-    """Fill missing radius-of-maximum-wind values with an intensity heuristic.
+def willoughby_rmw(vmax_kt: ArrayLike, latitude_deg: ArrayLike) -> np.ndarray:
+    """Radius of maximum wind (nm) from intensity and latitude.
 
-    Missing (``NaN`` or non-positive) values are replaced by a Vmax-dependent
-    climatological radius: ``< 35`` kt -> 80 nm, ``< 64`` -> 60, ``< 96`` -> 40,
-    ``< 137`` -> 25, otherwise 15 nm.  Extratropical fixes (``storm_type ==
+    The empirical fit of Willoughby, Darling & Rahn (2006), eq. 7a::
+
+        RMW [km] = 46.4 * exp(-0.0155 * Vmax [m/s] + 0.0169 * |latitude|)
+
+    Stronger storms have tighter cores; storms at higher latitude are broader.
+
+    Parameters
+    ----------
+    vmax_kt : array_like
+        Maximum sustained wind in knots.
+    latitude_deg : array_like
+        Latitude in degrees (sign is ignored).
+
+    Returns
+    -------
+    numpy.ndarray
+        RMW in nautical miles, same shape as the broadcast inputs.
+
+    Examples
+    --------
+    >>> float(willoughby_rmw(100.0, 25.0).round(1))
+    17.2
+    """
+    vmax_ms = np.asarray(vmax_kt, dtype=np.float64) * MS_PER_KT
+    lat = np.abs(np.asarray(latitude_deg, dtype=np.float64))
+    rmw_km = _WILLOUGHBY_A_KM * np.exp(-_WILLOUGHBY_B * vmax_ms + _WILLOUGHBY_C * lat)
+    return rmw_km / KM_PER_NM
+
+
+def _step_rmw(winds: np.ndarray) -> np.ndarray:
+    conditions = [winds < upper for upper, _ in _RMW_HEURISTIC]
+    choices = [value for _, value in _RMW_HEURISTIC]
+    return np.select(conditions, choices, default=_RMW_DEFAULT)
+
+
+def fill_missing_rmw(df: pd.DataFrame, *, method: str = "willoughby") -> pd.DataFrame:
+    """Fill missing radius-of-maximum-wind values from intensity (and latitude).
+
+    Missing (``NaN`` or non-positive) values are replaced by a climatological
+    radius. ``method="willoughby"`` (default) uses :func:`willoughby_rmw`,
+    which needs a ``latitude`` column; ``method="step"`` uses the coarse
+    intensity-class table ``< 35`` kt -> 80 nm, ``< 64`` -> 60, ``< 96`` -> 40,
+    ``< 137`` -> 25, otherwise 15 nm. Extratropical fixes (``storm_type ==
     'EX'``) then have their RMW scaled by 1.5, whether filled or observed.
 
     Parameters
     ----------
     df : pandas.DataFrame
-        Track with ``max_wind_speed_kt`` and optionally ``radius_max_wind_nm``
-        and ``storm_type``. Never mutated.
+        Track with ``max_wind_speed_kt`` and optionally ``radius_max_wind_nm``,
+        ``latitude`` and ``storm_type``. Never mutated.
+    method : {"willoughby", "step"}, default "willoughby"
+        Relation used for the missing values.
 
     Returns
     -------
@@ -266,31 +314,41 @@ def fill_missing_rmw(df: pd.DataFrame) -> pd.DataFrame:
     Raises
     ------
     KeyError
-        If ``max_wind_speed_kt`` is absent.
+        If ``max_wind_speed_kt`` is absent, or ``latitude`` is absent with
+        ``method="willoughby"``.
+    ValueError
+        For an unknown method.
 
     Examples
     --------
     >>> import pandas as pd
-    >>> df = pd.DataFrame({"max_wind_speed_kt": [30.0, 140.0],
+    >>> df = pd.DataFrame({"max_wind_speed_kt": [30.0, 140.0], "latitude": [20.0, 30.0],
     ...                    "radius_max_wind_nm": [float("nan"), float("nan")]})
-    >>> fill_missing_rmw(df)["radius_max_wind_nm"].tolist()
+    >>> fill_missing_rmw(df)["radius_max_wind_nm"].round(1).tolist()
+    [27.7, 13.6]
+    >>> fill_missing_rmw(df, method="step")["radius_max_wind_nm"].tolist()
     [80.0, 15.0]
     """
     if "max_wind_speed_kt" not in df.columns:
         raise KeyError("fill_missing_rmw requires a 'max_wind_speed_kt' column")
+    if method not in ("willoughby", "step"):
+        raise ValueError(f"Unknown RMW method {method!r}; use 'willoughby' or 'step'")
 
     out = df.copy()
     if "radius_max_wind_nm" not in out.columns:
         out["radius_max_wind_nm"] = np.nan
 
     winds = out["max_wind_speed_kt"].fillna(0.0).to_numpy(dtype=np.float64)
-    conditions = [winds < upper for upper, _ in _RMW_HEURISTIC]
-    choices = [value for _, value in _RMW_HEURISTIC]
-    heuristic = np.select(conditions, choices, default=_RMW_DEFAULT)
+    if method == "willoughby":
+        if "latitude" not in out.columns:
+            raise KeyError("fill_missing_rmw(method='willoughby') requires a 'latitude' column")
+        estimate = willoughby_rmw(winds, out["latitude"].fillna(0.0).to_numpy(dtype=np.float64))
+    else:
+        estimate = _step_rmw(winds)
 
     rmw = out["radius_max_wind_nm"].to_numpy(dtype=np.float64)
     needs_fill = np.isnan(rmw) | (rmw <= 0)
-    rmw = np.where(needs_fill, heuristic, rmw)
+    rmw = np.where(needs_fill, estimate, rmw)
 
     if "storm_type" in out.columns:
         is_ex = (out["storm_type"].astype(str).str.strip().str.upper() == "EX").to_numpy()
@@ -357,6 +415,7 @@ def prepare_track(
     freq: str = DEFAULT_TRACK_FREQ,
     method: str = "linear",
     truncate_after_hurricane: bool = True,
+    rmw_method: str = "willoughby",
 ) -> pd.DataFrame:
     """Turn a raw best track into a processed track.
 
@@ -380,6 +439,9 @@ def prepare_track(
         Drop every fix after the last hurricane-strength fix (see
         :func:`truncate_after_hurricane`), so the decaying post-landfall phase
         with its very large radius of maximum wind does not enter the hazard.
+    rmw_method : {"willoughby", "step"}, default "willoughby"
+        Relation used by :func:`fill_missing_rmw` for fixes without an
+        observed radius of maximum wind.
 
     Returns
     -------
@@ -400,7 +462,7 @@ def prepare_track(
 
     if truncate_after_hurricane:
         out = _truncate_after_hurricane(out)
-    out = fill_missing_rmw(out)
+    out = fill_missing_rmw(out, method=rmw_method)
     out = interpolate_track(out, freq=freq, method=method)
     out = add_translation_velocity(out)
     out = add_heading(out)

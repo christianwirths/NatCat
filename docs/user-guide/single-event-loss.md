@@ -29,6 +29,12 @@ After landfall a decaying storm is recorded with a very large radius of maximum 
 into a broad ring of near-threshold winds and trace damage far from the track. Pass
 `truncate_after_hurricane=False` to keep the full track, e.g. for tropical-storm-only events.
 
+`rmw_method` (default `"willoughby"`) controls how `prepare_track` fills fixes with a missing or
+non-positive radius of maximum wind &#8212; the norm for pre-2005 best tracks. The default uses the
+Willoughby, Darling & Rahn (2006) intensity/latitude relation; `rmw_method="step"` falls back to the
+package's earlier, coarser intensity-class table. See
+[Wind field: radius of maximum wind](../methodology/wind-field.md#radius-of-maximum-wind-rmw).
+
 ![Hurricane Michael (2018) best track approaching the Florida Panhandle](../assets/figures/michael_track.png){ width="100%" }
 *Figure: OFCL best track for Hurricane Michael (2018), colored by Saffir&#8211;Simpson category.*
 
@@ -37,7 +43,7 @@ into a broad ring of near-threshold winds and trace damage far from the track. P
 ```python
 from natcat.hazards import TropicalCycloneHazard
 
-hazard = TropicalCycloneHazard(track, vortex="rankine", asymmetry_factor=0.5)
+hazard = TropicalCycloneHazard(track)   # decay_exponent=0.5, asymmetry_factor=0.3 by default
 ```
 
 `compute_intensity(coords)` returns the maximum wind speed (kt) experienced at each coordinate
@@ -53,10 +59,13 @@ footprint = hazard.compute_intensity(coords)   # shape (N,)
 ![Maximum sustained wind footprint over the exposed area](../assets/figures/michael_footprint.png){ width="100%" }
 *Figure: gridded maximum wind footprint (kt) from the Rankine vortex wind field.*
 
-!!! tip "Decay exponent"
-    `TropicalCycloneHazard(..., decay_exponent=2.0)` controls how fast wind speed decays outside
-    the radius of maximum wind (RMW). See [Wind field](../methodology/wind-field.md) for the
-    physical interpretation of this parameter and why 2.0 is kept as the package default.
+!!! tip "Decay exponent and asymmetry factor are calibrated defaults"
+    `TropicalCycloneHazard(..., decay_exponent=..., asymmetry_factor=...)` controls how fast wind
+    speed decays outside the radius of maximum wind (RMW) and how much of the storm's own motion
+    projects onto the wind field. The defaults, 0.5 and 0.3, are not arbitrary: they are the
+    hazard-grid point that produced the best calibrated fit against 19 observed US landfalls (see
+    [Calibration](../methodology/calibration.md#hazard-parameter-grid)). See
+    [Wind field](../methodology/wind-field.md) for the physical interpretation of both parameters.
 
 ## Apply vulnerability and compute loss
 
@@ -109,7 +118,7 @@ plotting.animate_footprint(history, track=track, portfolio=portfolio, extent=ext
 
 | Signature | Returns |
 |-----------|---------|
-| `TropicalCycloneHazard(track, *, vortex="rankine", asymmetry_factor=0.5)` | hazard instance |
+| `TropicalCycloneHazard(track, *, vortex="rankine", asymmetry_factor=0.3, decay_exponent=0.5)` | hazard instance |
 | `hazard.compute_intensity(coords)` | `(N,)` max wind speed (kt) |
 | `hazard.compute_intensity_history(coords, times)` | `(T, N)` cumulative running max at each time |
 | `LossCalculator(hazard, vulnerability)` | calculator instance |

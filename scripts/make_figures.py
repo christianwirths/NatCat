@@ -141,7 +141,7 @@ class FigureCache:
             import pickle
 
             from natcat.loss import LossSimulator
-            from natcat.vulnerability import WindVulnerability
+            from natcat.vulnerability import ValueDependentVulnerability
 
             cache = Path(self.args.cache) if self.args.cache else None
             if cache is not None and cache.exists():
@@ -161,7 +161,7 @@ class FigureCache:
             simulator = LossSimulator(
                 self.catalog_model,
                 self.portfolio,
-                WindVulnerability(),
+                ValueDependentVulnerability.calibrated(),
                 seed=42,
             )
             self._simulation_results = simulator.run(self.args.years, progress=True)
@@ -200,10 +200,10 @@ def fig_michael_footprint(ctx: FigureCache) -> None:
     from natcat.hazards import TropicalCycloneHazard
     from natcat.loss import LossCalculator
     from natcat.plotting import add_source_note, plot_footprint, save
-    from natcat.vulnerability import WindVulnerability
+    from natcat.vulnerability import ValueDependentVulnerability
 
     hazard = TropicalCycloneHazard(ctx.michael_track)
-    calculator = LossCalculator(hazard, WindVulnerability())
+    calculator = LossCalculator(hazard, ValueDependentVulnerability.calibrated())
     results = calculator.compute(ctx.portfolio)
 
     fig, _ = plot_footprint(
@@ -224,7 +224,7 @@ def fig_michael_animation(ctx: FigureCache) -> None:
     from natcat.hazards import TropicalCycloneHazard
     from natcat.loss import LossCalculator
     from natcat.plotting import animate_footprint
-    from natcat.vulnerability import WindVulnerability
+    from natcat.vulnerability import ValueDependentVulnerability
 
     track = ctx.michael_track
     start = pd.Timestamp("2018-10-07")
@@ -232,7 +232,7 @@ def fig_michael_animation(ctx: FigureCache) -> None:
     times = pd.date_range(start, end, freq="6h")
 
     hazard = TropicalCycloneHazard(track)
-    calculator = LossCalculator(hazard, WindVulnerability())
+    calculator = LossCalculator(hazard, ValueDependentVulnerability.calibrated())
     history = calculator.compute_history(ctx.portfolio, times)
 
     animate_footprint(

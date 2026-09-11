@@ -21,6 +21,9 @@ hazard = TropicalCycloneHazard(track)
 
 # 3. Choose a vulnerability function for the exposure's construction type.
 vulnerability = WindVulnerability(construction_type="Masonry")
+# For calibrated parameters instead, use:
+#   from natcat.vulnerability import ValueDependentVulnerability
+#   vulnerability = ValueDependentVulnerability.calibrated()
 
 # 4. Build (or load) an exposure portfolio.
 #    synthetic_portfolio scatters `n` locations with random TIV inside a lat/lon bounding box.

@@ -22,7 +22,19 @@ from ..hazards.tropical_cyclone import TropicalCycloneHazard
 from ..tracks.pipeline import load_best_track
 from ..vulnerability.base import VulnerabilityModel
 
-__all__ = ["CONUS_BOUNDS", "StormCase", "build_cases", "load_cases", "save_cases", "storm_region"]
+__all__ = [
+    "CONUS_BOUNDS",
+    "CaseInput",
+    "StormCase",
+    "build_cases",
+    "cases_from_inputs",
+    "load_cases",
+    "load_inputs",
+    "prepare_inputs",
+    "save_cases",
+    "save_inputs",
+    "storm_region",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +90,24 @@ class StormCase:
         return float(np.dot(np.asarray(damage_ratio, dtype=np.float64), self.tiv))
 
 
+@dataclass
+class CaseInput:
+    """Everything a :class:`StormCase` needs except the wind footprint.
+
+    Tracks and regional exposure are the slow part to load; keeping them lets
+    the footprint be recomputed cheaply for different hazard parameters.
+    """
+
+    storm_id: str
+    name: str
+    observed_loss: float
+    track: pd.DataFrame
+    portfolio: pd.DataFrame
+    bounds: tuple[float, float, float, float]
+    weight: float = 1.0
+    meta: dict = field(default_factory=dict)
+
+
 def storm_region(
     track: pd.DataFrame,
     *,
@@ -126,18 +156,17 @@ def _default_exposure_loader(bounds: tuple[float, float, float, float]) -> pd.Da
     return load_litpop_exposure("USA", bounds=bounds)
 
 
-def build_cases(
+def prepare_inputs(
     observed: pd.DataFrame,
     *,
     exposure_loader: Callable[[tuple[float, float, float, float]], pd.DataFrame] | None = None,
-    hazard_factory: Callable[[pd.DataFrame], TropicalCycloneHazard] = TropicalCycloneHazard,
     margin_deg: float = 2.0,
     loss_column: str = "observed_loss_ref_usd",
     data_dir: str | Path | None = None,
     download: bool = True,
     progress: bool = True,
-) -> list[StormCase]:
-    """Compute one :class:`StormCase` per row of an observed-loss table.
+) -> list[CaseInput]:
+    """Load the track and regional exposure for every row of an observed-loss table.
 
     Parameters
     ----------
@@ -147,9 +176,6 @@ def build_cases(
     exposure_loader : callable, optional
         ``bounds -> portfolio DataFrame``; defaults to LitPop USA clipped to the
         storm region.
-    hazard_factory : callable, default TropicalCycloneHazard
-        Builds the hazard from a processed track (use ``functools.partial`` to
-        change hazard parameters).
     margin_deg : float, default 2.0
         Padding around the landfall track for the exposure box.
     loss_column : str, default "observed_loss_ref_usd"
@@ -161,9 +187,9 @@ def build_cases(
 
     Returns
     -------
-    list of StormCase
-        Storms whose track never reaches the land bounds are skipped with a
-        warning.
+    list of CaseInput
+        Storms whose track never reaches the land bounds, or whose region holds
+        no exposure, are skipped with a warning.
     """
     if loss_column not in observed.columns:
         raise KeyError(f"observed table has no {loss_column!r} column; call normalise_losses first")
@@ -173,9 +199,9 @@ def build_cases(
     if progress:
         from tqdm.auto import tqdm
 
-        rows = tqdm(rows, desc="Building cases")
+        rows = tqdm(rows, desc="Loading storms")
 
-    cases: list[StormCase] = []
+    inputs: list[CaseInput] = []
     for row in rows:
         track = load_best_track(
             int(row.year),
@@ -193,27 +219,110 @@ def build_cases(
         if len(portfolio) == 0:
             logger.warning("%s (%s): empty exposure in %s, skipped", row.name, row.storm_id, bounds)
             continue
-        coords = portfolio[["latitude", "longitude"]].to_numpy(dtype=np.float64)
-        intensity = np.asarray(hazard_factory(track).compute_intensity(coords), dtype=np.float64)
-        construction = (
-            portfolio["construction"].to_numpy(dtype=object)
-            if "construction" in portfolio.columns
-            else None
-        )
-        cases.append(
-            StormCase(
+        inputs.append(
+            CaseInput(
                 storm_id=str(row.storm_id),
                 name=str(row.name),
                 observed_loss=float(getattr(row, loss_column)),
-                intensity=intensity,
-                tiv=portfolio["tiv"].to_numpy(dtype=np.float64),
-                construction=construction,
+                track=track,
+                portfolio=portfolio,
                 bounds=bounds,
                 weight=float(getattr(row, "weight", 1.0)),
                 meta={"year": int(row.year), "n_track_points": int(len(track))},
             )
         )
+    return inputs
+
+
+def cases_from_inputs(
+    inputs: Sequence[CaseInput],
+    hazard_factory: Callable[[pd.DataFrame], TropicalCycloneHazard] = TropicalCycloneHazard,
+) -> list[StormCase]:
+    """Evaluate the wind footprint of every input with the given hazard.
+
+    Parameters
+    ----------
+    inputs : sequence of CaseInput
+        From :func:`prepare_inputs`.
+    hazard_factory : callable, default TropicalCycloneHazard
+        Builds the hazard from a processed track; use ``functools.partial`` to
+        set ``decay_exponent`` / ``asymmetry_factor``.
+
+    Returns
+    -------
+    list of StormCase
+    """
+    cases: list[StormCase] = []
+    for item in inputs:
+        coords = item.portfolio[["latitude", "longitude"]].to_numpy(dtype=np.float64)
+        intensity = np.asarray(
+            hazard_factory(item.track).compute_intensity(coords), dtype=np.float64
+        )
+        construction = (
+            item.portfolio["construction"].to_numpy(dtype=object)
+            if "construction" in item.portfolio.columns
+            else None
+        )
+        cases.append(
+            StormCase(
+                storm_id=item.storm_id,
+                name=item.name,
+                observed_loss=item.observed_loss,
+                intensity=intensity,
+                tiv=item.portfolio["tiv"].to_numpy(dtype=np.float64),
+                construction=construction,
+                bounds=item.bounds,
+                weight=item.weight,
+                meta=dict(item.meta),
+            )
+        )
     return cases
+
+
+def build_cases(
+    observed: pd.DataFrame,
+    *,
+    hazard_factory: Callable[[pd.DataFrame], TropicalCycloneHazard] = TropicalCycloneHazard,
+    inputs: Sequence[CaseInput] | None = None,
+    **kwargs,
+) -> list[StormCase]:
+    """Compute one :class:`StormCase` per row of an observed-loss table.
+
+    Shorthand for :func:`cases_from_inputs` applied to :func:`prepare_inputs`.
+
+    Parameters
+    ----------
+    observed : pandas.DataFrame
+        Output of :func:`natcat.calibration.normalise_losses`. Ignored when
+        ``inputs`` is given.
+    hazard_factory : callable, default TropicalCycloneHazard
+        Builds the hazard from a processed track.
+    inputs : sequence of CaseInput, optional
+        Previously prepared inputs, to skip loading tracks and exposure.
+    **kwargs
+        Passed to :func:`prepare_inputs`.
+
+    Returns
+    -------
+    list of StormCase
+    """
+    if inputs is None:
+        inputs = prepare_inputs(observed, **kwargs)
+    return cases_from_inputs(inputs, hazard_factory)
+
+
+def save_inputs(inputs: Sequence[CaseInput], path: str | Path) -> None:
+    """Pickle prepared inputs (tracks and regional exposure)."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as handle:
+        pickle.dump(list(inputs), handle)
+
+
+def load_inputs(path: str | Path) -> list[CaseInput]:
+    """Load inputs written by :func:`save_inputs`."""
+    with Path(path).open("rb") as handle:
+        return pickle.load(handle)
 
 
 def save_cases(cases: Sequence[StormCase], path: str | Path) -> None:

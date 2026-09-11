@@ -23,21 +23,26 @@ where \(v_{\max}\) is the maximum sustained wind speed (kt) and \(n\) is the **d
 | Exponent \(n\) | Interpretation |
 |----------------|-----------------|
 | \(n = 1\) | Classical Rankine vortex |
-| \(n \approx 0.4\text{&#8211;}0.6\) | "Modified Rankine" &#8212; commonly fitted to observed TC wind profiles (e.g. Holland 1980 and subsequent parametric-profile literature) |
-| \(n = 2\) (**NatCat default**) | Steeper-than-physical decay; kept as the package default for reproducibility with prior results |
+| \(n = 0.5\) (**NatCat default**) | "Modified Rankine" &#8212; commonly fitted to observed TC wind profiles (e.g. Holland 1980 and subsequent parametric-profile literature) |
+| \(n = 2\) | Steeper-than-physical decay; NatCat's default before calibration |
 
 ```python
 from natcat.hazards.wind_field import rankine_vortex
 
-v = rankine_vortex(r, vmax=100.0, rmw=25.0, exponent=2.0)
+v = rankine_vortex(r, vmax=100.0, rmw=25.0, exponent=0.5)
 ```
 
-!!! warning "Exponent 2 is not the physically standard Rankine profile"
-    `exponent=2.0` decays much faster with distance than a real TC wind field (see Holland 1980 for
-    a more physically grounded profile). It is kept as NatCat's default purely for continuity with
-    earlier results in this project; pass `exponent=1.0` for the classical Rankine profile or
-    `exponent=0.5` for a typical "modified Rankine" fit. `exponent` is exposed on
-    `rankine_vortex`, `max_wind_footprint`, and as `TropicalCycloneHazard(..., decay_exponent=...)`.
+!!! info "The decay exponent and asymmetry factor are calibrated defaults"
+    `DEFAULT_DECAY_EXPONENT = 0.5` and `DEFAULT_ASYMMETRY_FACTOR = 0.3` are not arbitrary: they are
+    the winning point of the hazard grid in
+    [Calibration](calibration.md#hazard-parameter-grid), which recomputed the wind footprint of 19
+    US landfalls (1989&#8211;2020) at every combination of exponent &isin;
+    {0.5, 0.75, 1.0, 1.5, 2.0} and asymmetry &isin; {0.3, 0.5, 0.7} and calibrated the vulnerability
+    at each point. Lower exponents were consistently better across the whole grid (1.77x&#8211;2.08x
+    typical factor error), and 0.5/0.3 &#8212; conveniently also the textbook "modified Rankine" value
+    &#8212; won outright. The pre-calibration defaults were `exponent=2.0` and `factor=0.5`; both are
+    still available by passing them explicitly. `exponent` is exposed on `rankine_vortex`,
+    `max_wind_footprint`, and as `TropicalCycloneHazard(..., decay_exponent=...)`.
 
 ![Radial wind profile for varying decay exponents](../assets/figures/wind_profile.png){ width="100%" }
 *Figure: tangential wind speed vs. radius for `exponent` &isin; {0.5, 1.0, 2.0}, same \(v_{\max}\), \(R\).*
@@ -60,37 +65,43 @@ v_{\text{total}} = v_{\text{sym}} + f \cdot v_{t} \cdot \sin(\Delta\theta)
 where \(v_{\text{sym}}\) is the symmetric Rankine wind speed, \(v_t\) is the translation speed,
 \(\theta_{\text{point}}\) is the bearing from the storm center to the location of interest,
 \(\theta_{\text{heading}}\) is the storm's heading, and \(f\) is the **asymmetry factor**
-(default 0.5). \(\Delta\theta\) is wrapped to \((-180^\circ, 180^\circ]\) so that positive values
-are to the right of the track (positive contribution) and negative values to the left.
+(`DEFAULT_ASYMMETRY_FACTOR = 0.3`, the calibrated value; the pre-calibration default was 0.5).
+\(\Delta\theta\) is wrapped to \((-180^\circ, 180^\circ]\) so that positive values are to the right
+of the track (positive contribution) and negative values to the left.
 
 ```python
 from natcat.hazards.wind_field import motion_asymmetry
 
-v_total = v_sym + motion_asymmetry(bearing_to_point, heading, translation_speed, factor=0.5)
+v_total = v_sym + motion_asymmetry(bearing_to_point, heading, translation_speed, factor=0.3)
 ```
 
-## Radius of maximum wind (RMW) heuristic
+## Radius of maximum wind (RMW)
 
-When RMW is missing or non-positive in the raw ATCF record, `fill_missing_rmw` substitutes a
-heuristic value based on the intensity class, with a widening factor for extratropical storms:
+Best tracks before about 2005 carry no observed RMW at all, and even later fixes have frequent
+gaps, so `fill_missing_rmw` has to substitute *something* for a large share of every track. The
+default, `method="willoughby"`, uses the empirical fit of Willoughby, Darling & Rahn (2006), eq. 7a:
 
-| \(v_{\max}\) (kt) | RMW (nm) |
-|----|----|
-| < 35 | 80 |
-| < 64 | 60 |
-| < 96 | 40 |
-| < 137 | 25 |
-| &ge; 137 | 15 |
+\[
+R_{\max}\ [\text{km}] = 46.4 \cdot \exp\big(-0.0155\, v_{\max}\ [\text{m/s}] + 0.0169\, |\phi|\big)
+\]
 
-If `storm_type == "EX"` (extratropical), the resulting RMW is multiplied by 1.5 &#8212;
+with \(v_{\max}\) the maximum sustained wind and \(\phi\) the latitude in degrees: stronger storms
+have tighter cores, and storms at higher latitude are broader for the same intensity. It replaces
+the coarse intensity-class step table this package used previously (`method="step"`, still
+available), which assigned every Category 4+ storm a flat 25 nm RMW regardless of how compact it
+actually was &#8212; Hurricane Michael's observed RMW at landfall was 6&#8211;10 nm, so the step table
+overstated it by roughly 2.5&#8211;4x and, because the Rankine core scales the whole footprint,
+concentrated far too little wind (and far too much loss) near the eyewall. If `storm_type == "EX"`
+(extratropical), the resulting RMW &#8212; from either method &#8212; is multiplied by 1.5, since
 extratropical transition broadens the wind field even as peak winds weaken.
 
-![RMW heuristic by intensity class](../assets/figures/rmw_heuristic.png){ width="100%" }
-*Figure: heuristic RMW (nm) as a step function of maximum sustained wind speed (kt).*
+![RMW relations for missing values](../assets/figures/rmw_heuristic.png){ width="100%" }
+*Figure: RMW (nm) vs. maximum sustained wind speed (kt) &#8212; the Willoughby relation at 15/25/35&deg;N
+against the legacy step table (dashed).*
 
 ## Footprint computation
 
-`max_wind_footprint(track, coords, *, vortex="rankine", asymmetry_factor=0.5, chunk_size=200_000)`
+`max_wind_footprint(track, coords, *, vortex="rankine", asymmetry_factor=DEFAULT_ASYMMETRY_FACTOR, exponent=DEFAULT_DECAY_EXPONENT, chunk_size=200_000)`
 evaluates the wind field at every combination of track point and target coordinate and reduces to
 the running maximum per location:
 
@@ -128,3 +139,6 @@ own `freq`; its default trades some of this accuracy for run time on thousands o
   fields throughout the parametric-model literature.
 - Holland, G. J. (1980). *An Analytic Model of the Wind and Pressure Profiles in Hurricanes.*
   Monthly Weather Review, 108(8), 1212&#8211;1218.
+- Willoughby, H. E., Darling, R. W. R., & Rahn, M. E. (2006). *Parametric Representation of the
+  Primary Hurricane Vortex. Part II: A New Family of Sectionally Continuous Profiles.* Monthly
+  Weather Review, 134(4), 1102&#8211;1120.

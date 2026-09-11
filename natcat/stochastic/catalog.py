@@ -196,7 +196,9 @@ class SyntheticTCCatalog:
                 if not ok:
                     self.failed_files.append((str(path), reason))
                     continue
-                tracks.append(prepare_track(raw, freq=self.freq))
+                # The full life cycle (including decay) is needed to learn transitions;
+                # truncation is applied by the LossSimulator when losses are evaluated.
+                tracks.append(prepare_track(raw, freq=self.freq, truncate_after_hurricane=False))
             except (ValueError, KeyError, OSError) as exc:
                 self.failed_files.append((str(path), repr(exc)))
 

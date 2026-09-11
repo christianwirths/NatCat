@@ -15,6 +15,7 @@ from .processing import (
     interpolate_track,
     prepare_track,
     truncate_after_hurricane,
+    willoughby_rmw,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "prepare_forecast_track",
     "prepare_track",
     "truncate_after_hurricane",
+    "willoughby_rmw",
 ]

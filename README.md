@@ -59,14 +59,14 @@ Track data is downloaded from the NHC archive on first use into `data/raw/` (ove
 
 ```python
 from natcat import (
-    LossCalculator, TropicalCycloneHazard, WindVulnerability,
+    LossCalculator, TropicalCycloneHazard, ValueDependentVulnerability,
     load_best_track, synthetic_portfolio, plotting,
 )
 
 track = load_best_track(2018, "al", "14")                      # NHC id AL142018, 5-minute track
 portfolio = synthetic_portfolio(n=2000, bounds=(29.0, 31.0, -86.5, -84.5), seed=1)
 
-calc = LossCalculator(TropicalCycloneHazard(track), WindVulnerability())
+calc = LossCalculator(TropicalCycloneHazard(track), ValueDependentVulnerability.calibrated())
 result = calc.compute(portfolio)                               # adds intensity, damage_ratio, loss
 print(f"Ground-up loss: ${calc.total_loss/1e6:,.1f} M")
 
@@ -92,7 +92,8 @@ from natcat import SyntheticTCCatalog, LossSimulator, ExceedanceProbability, loa
 catalog = SyntheticTCCatalog(seed=42).fit("data/raw")          # 1,495 historical Atlantic tracks
 portfolio = load_litpop_exposure("USA", bounds=(24.5, 32.0, -87.6, -80.0))
 
-results = LossSimulator(catalog, portfolio, WindVulnerability(), seed=42).run(n_years=1000)
+vulnerability = ValueDependentVulnerability.calibrated()               # fitted to 19 US landfalls
+results = LossSimulator(catalog, portfolio, vulnerability, seed=42).run(n_years=1000)
 ep = ExceedanceProbability.from_simulation(results)
 
 print(f"AAL: ${results.aal/1e9:.2f} B")
@@ -113,29 +114,31 @@ Reference run on the Florida / Gulf-coast LitPop portfolio above (12,201 locatio
 
 | Metric | Value |
 |---|---|
-| Average annual loss (AAL) | $6.9 B |
-| 1-in-10 AEP loss | $6.4 B |
-| 1-in-50 AEP loss | $87 B |
-| 1-in-100 AEP loss | $149 B |
-| 1-in-250 AEP loss | $258 B |
+| Average annual loss (AAL) | $8.9 B |
+| 1-in-10 AEP loss | $13 B |
+| 1-in-50 AEP loss | $70 B |
+| 1-in-100 AEP loss | $130 B |
+| 1-in-250 AEP loss | $280 B |
 
 These are ground-up losses from an uncalibrated research model. See the documentation's
 [limitations page](docs/methodology/limitations.md) before reading anything into the numbers.
 
 ## Calibration
 
-`natcat.calibration` fits a value-dependent vulnerability model against observed US landfall
-losses (NHC Tropical Cyclone Reports, CPI-normalised), so the loss numbers above need not stay
-uncalibrated:
+`natcat.calibration` fits a value-dependent vulnerability model, and the Rankine wind-field
+parameters themselves, against observed US landfall losses (NHC Tropical Cyclone Reports,
+GDP-normalised) &#8212; the package's hazard defaults (`decay_exponent=0.5`, `asymmetry_factor=0.3`)
+and `ValueDependentVulnerability.calibrated()` are this calibration's result, with a typical factor
+error of 1.89x (down from 4.35x uncalibrated) against the bundled 19-storm set:
 
 ```python
-from natcat.calibration import Calibrator, build_cases, load_observed_losses, normalise_losses
+from natcat.calibration import calibrate_hazard_grid, prepare_inputs, load_observed_losses, normalise_losses
 from natcat.vulnerability import ValueDependentVulnerability
 
-observed = normalise_losses(load_observed_losses(), reference_year=2018)
-cases = build_cases(observed)                      # footprint per storm, once
-result = Calibrator(cases, ValueDependentVulnerability()).fit(seed=0)
-print(result.summary())
+observed = normalise_losses(load_observed_losses(), reference_year=2018)   # GDP-normalised by default
+inputs = prepare_inputs(observed)                  # track + regional exposure per storm, once
+grid = calibrate_hazard_grid(inputs, ValueDependentVulnerability(), seed=0)
+print(grid.summary())
 ```
 
 <p align="center">

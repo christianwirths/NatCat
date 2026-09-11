@@ -13,6 +13,7 @@ from natcat.tracks import (
     interpolate_track,
     prepare_track,
     truncate_after_hurricane,
+    willoughby_rmw,
 )
 
 PROCESSED_COLUMNS = {
@@ -122,19 +123,42 @@ def test_interpolate_track_requires_time_column(tiny_track):
         (180.0, 15.0),
     ],
 )
-def test_fill_missing_rmw_thresholds(wind, expected):
+def test_fill_missing_rmw_step_thresholds(wind, expected):
     df = pd.DataFrame({"max_wind_speed_kt": [wind], "radius_max_wind_nm": [np.nan]})
-    assert fill_missing_rmw(df)["radius_max_wind_nm"].iloc[0] == pytest.approx(expected)
+    out = fill_missing_rmw(df, method="step")
+    assert out["radius_max_wind_nm"].iloc[0] == pytest.approx(expected)
+
+
+def test_willoughby_rmw_values_and_trends():
+    # Willoughby et al. (2006): 100 kt at 25N -> 31.9 km = 17.2 nm
+    assert willoughby_rmw(100.0, 25.0) == pytest.approx(17.2, abs=0.1)
+    assert willoughby_rmw(140.0, 25.0) < willoughby_rmw(100.0, 25.0)  # stronger -> tighter
+    assert willoughby_rmw(100.0, 35.0) > willoughby_rmw(100.0, 25.0)  # poleward -> broader
+    assert willoughby_rmw(100.0, -25.0) == pytest.approx(willoughby_rmw(100.0, 25.0))
+
+
+def test_fill_missing_rmw_default_is_willoughby_and_needs_latitude():
+    df = pd.DataFrame(
+        {"max_wind_speed_kt": [100.0, 100.0], "latitude": [25.0, 25.0],
+         "radius_max_wind_nm": [np.nan, 12.0]}
+    )  # fmt: skip
+    out = fill_missing_rmw(df)["radius_max_wind_nm"]
+    assert out.iloc[0] == pytest.approx(17.2, abs=0.1)
+    assert out.iloc[1] == 12.0
+    with pytest.raises(KeyError, match="latitude"):
+        fill_missing_rmw(df.drop(columns="latitude"))
+    with pytest.raises(ValueError, match="method"):
+        fill_missing_rmw(df, method="magic")
 
 
 def test_fill_missing_rmw_keeps_observed_values():
     df = pd.DataFrame({"max_wind_speed_kt": [100.0], "radius_max_wind_nm": [12.0]})
-    assert fill_missing_rmw(df)["radius_max_wind_nm"].iloc[0] == 12.0
+    assert fill_missing_rmw(df, method="step")["radius_max_wind_nm"].iloc[0] == 12.0
 
 
 def test_fill_missing_rmw_replaces_non_positive():
     df = pd.DataFrame({"max_wind_speed_kt": [100.0], "radius_max_wind_nm": [0.0]})
-    assert fill_missing_rmw(df)["radius_max_wind_nm"].iloc[0] == 25.0
+    assert fill_missing_rmw(df, method="step")["radius_max_wind_nm"].iloc[0] == 25.0
 
 
 def test_fill_missing_rmw_scales_extratropical():
@@ -145,19 +169,19 @@ def test_fill_missing_rmw_scales_extratropical():
             "storm_type": ["TD", "EX"],
         }
     )
-    out = fill_missing_rmw(df)["radius_max_wind_nm"].tolist()
+    out = fill_missing_rmw(df, method="step")["radius_max_wind_nm"].tolist()
     assert out == pytest.approx([80.0, 120.0])
 
 
 def test_fill_missing_rmw_adds_column_when_absent():
     df = pd.DataFrame({"max_wind_speed_kt": [50.0]})
-    assert fill_missing_rmw(df)["radius_max_wind_nm"].iloc[0] == 60.0
+    assert fill_missing_rmw(df, method="step")["radius_max_wind_nm"].iloc[0] == 60.0
 
 
 def test_fill_missing_rmw_does_not_mutate_input():
     df = pd.DataFrame({"max_wind_speed_kt": [50.0], "radius_max_wind_nm": [np.nan]})
     before = df.copy(deep=True)
-    fill_missing_rmw(df)
+    fill_missing_rmw(df, method="step")
     pd.testing.assert_frame_equal(df, before)
 
 
